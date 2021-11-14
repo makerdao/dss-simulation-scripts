@@ -1,6 +1,10 @@
+#!/usr/bin/env node
+
 const fs = require('fs');
 const hre = require("hardhat");
 const ethers = hre.ethers;
+
+const args = process.argv.slice(2);
 
 const ETH_FROM    = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
 const PAUSE_PROXY = "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB";
@@ -49,7 +53,7 @@ async function main() {
   //
   // Everthing below here happens as the pause proxy
   //
-  const OSMABI = JSON.parse(fs.readFileSync('./abi/OSM.abi').toString());
+  const OSMABI = JSON.parse(fs.readFileSync('./abi/OSM.json').toString());
   const osm = await ethers.getContractAt(OSMABI, PIP_ETH, signer);
 
   await hre.network.provider.request({

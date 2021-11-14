@@ -3,14 +3,24 @@
 ## Start the server
 
 ```
-./start
+./bin/start.sh
 ```
 
 ## Running Scripts
 
 ### Void the OSM for ETH
 ```
-npx hardhat run scripts/voidOSM.js --network localhost
+HARDHAT_NETWORK=localhost ./scripts/voidOSM.js
+```
+
+### warp ahead by seconds
+```
+HARDHAT_NETWORK=localhost ./scripts/warp.js 7200
+```
+
+### set the OSM price for an asset
+```
+HARDHAT_NETWORK=localhost ./scripts/setOSMPrice.js "ETH-A" ${PIP_ETH} 4000
 ```
 
 ## debug notes

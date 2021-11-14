@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 require('hardhat')
 const { formatEther, parseUnits } = require('@ethersproject/units');
 // const { ethers } = require('ethers');
