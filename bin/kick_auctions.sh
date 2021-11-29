@@ -13,7 +13,6 @@ set -x
 ./bin/bark.sh BAT-A 4934
 ./bin/bark.sh ZRX-A 10708
 ./bin/bark.sh MANA-A 24620
-./bin/bark.sh COMP-A 18493
 ./bin/bark.sh LINK-A 23721
 ./bin/bark.sh BAL-A 24281
 ./bin/bark.sh YFI-A 25700
