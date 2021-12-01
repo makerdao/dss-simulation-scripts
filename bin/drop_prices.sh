@@ -2,40 +2,24 @@
 
 export HARDHAT_NETWORK=localhost
 
-price_pct=0.70 # 30% reduction in price
+price_pct=0.75 # 25% reduction in price
 
-# ETH-A
+# ETH-A, ETH-B, ETH-C
 cur=$(./bin/osm_price.sh "${PIP_ETH}")
 price=$(echo "scale=18; ${cur} * ${price_pct}"|bc)
 set -x
 ./scripts/setOSMPrice.js "ETH-A" "${PIP_ETH}" "${price}"
+./scripts/setOSMPrice.js "ETH-B" "${PIP_ETH}" "${price}"
+./scripts/setOSMPrice.js "ETH-C" "${PIP_ETH}" "${price}"
 set +x
 
-# WBTC-A
+# WBTC-A, WBTC-B, WBTC-C, RENBTC-A
 cur=$(./bin/osm_price.sh "${PIP_WBTC}")
 price=$(echo "scale=18; ${cur} * ${price_pct}"|bc)
 set -x
 ./scripts/setOSMPrice.js "WBTC-A" "${PIP_WBTC}" "${price}"
-set +x
-
-# WBTC-B
-cur=$(./bin/osm_price.sh "${PIP_WBTC}")
-price=$(echo "scale=18; ${cur} * ${price_pct}"|bc)
-set -x
 ./scripts/setOSMPrice.js "WBTC-B" "${PIP_WBTC}" "${price}"
-set +x
-
-# WBTC-C
-cur=$(./bin/osm_price.sh "${PIP_WBTC}")
-price=$(echo "scale=18; ${cur} * ${price_pct}"|bc)
-set -x
 ./scripts/setOSMPrice.js "WBTC-C" "${PIP_WBTC}" "${price}"
-set +x
-
-# RENBTC-A
-cur=$(./bin/osm_price.sh "${PIP_RENBTC}")
-price=$(echo "scale=18; ${cur} * ${price_pct}"|bc)
-set -x
 ./scripts/setOSMPrice.js "RENBTC-A" "${PIP_RENBTC}" "${price}"
 set +x
 
