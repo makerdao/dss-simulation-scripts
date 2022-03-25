@@ -8,6 +8,11 @@
 
 ## Running Scripts
 
+### Trigger ES
+```
+HARDHAT_NETWORK=localhost ./scripts/cageMCD.js
+```
+
 ### Void the OSM for ETH
 ```
 HARDHAT_NETWORK=localhost ./scripts/voidOSM.js

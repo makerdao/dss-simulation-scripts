@@ -49,6 +49,8 @@ module.exports = {
         // blockNumber: 13078678 // testing original tests from univ3-lp-oracle
         // blockNumber: 13323323 // pre-COMP sploit
         // blockNumber: 13656594 // debug wstETH Vault 26279
+        // blockNumber: 13779176 // testing last spell with forge
+        // blockNumber: 14051900 // simulate Flappy Friday
       }
     },
     fork: {

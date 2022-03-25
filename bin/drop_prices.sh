@@ -142,4 +142,11 @@ set -x
 ./scripts/setOSMPrice.js "UNIV2WBTCDAI-A" "${PIP_UNIV2WBTCDAI}" "${price}"
 set +x
 
+# CRVV1ETHSTETH-A
+cur=$(./bin/osm_price.sh "${PIP_CRVV1ETHSTETH}")
+price=$(echo "scale=18; ${cur} * ${price_pct}"|bc)
+set -x
+./scripts/setOSMPrice.js "CRVV1ETHSTETH-A" "${PIP_CRVV1ETHSTETH}" "${price}"
+set +x
+
 echo "done"
