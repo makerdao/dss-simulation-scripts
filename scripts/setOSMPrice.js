@@ -17,6 +17,7 @@ const OSM = args[1] || "0x81FE72B5A8d1A857d176C3E7d5Bd2679A9B85763";
 const PRICE = parseInt(args[2]) || 1;
 
 async function setOSMPrice(ilk, osm, price) {
+  console.log(await getOSMPrice(ilk));
   let signer = await ethers.getSigner(ETH_FROM);
 
   // Hacking cur price
@@ -38,6 +39,17 @@ async function setOSMPrice(ilk, osm, price) {
   await spot.poke(ilk);
 
   await hre.network.provider.send("evm_mine");
+  console.log(await getOSMPrice(ilk));
+}
+
+const getOSMPrice = async ilk => {
+  const VATABI = JSON.parse(fs.readFileSync('abi/vat.json', 'utf-8'));
+  const MCD_VAT = "0x35d1b3f3d7966a1dfe207aa4514c12a259a0492b";
+  const vat = await ethers.getContractAt(VATABI, MCD_VAT);
+  const info = await vat.ilks(ilk);
+  const spot = info.spot;
+  const price = ethers.utils.formatUnits(spot, 27);
+  return price;
 }
 
 setOSMPrice(ILK, OSM, PRICE)

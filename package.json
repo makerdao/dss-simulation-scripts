@@ -10,5 +10,6 @@
   },
   "dependencies": {
     "hardhat-change-network": "^0.0.7"
-  }
+  },
+  "version": "1.22.18"
 }
