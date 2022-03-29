@@ -1,6 +1,22 @@
 # dss-simulation-scripts
 
-## Start the server
+## Getting started
+
+### Install dependencies
+
+```
+npm i
+```
+
+### Set the `ETH_RPC_URL` env var to an archival node endpoint
+
+### Compile contracts
+
+```
+npx hardhat compile
+```
+
+### Start the server
 
 ```
 ./bin/start.sh

@@ -1,8 +1,12 @@
 require("hardhat-change-network");
 require("@nomiclabs/hardhat-waffle");
 
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
+const { ETH_RPC_URL } = process.env;
+
+if (!ETH_RPC_URL) {
+  console.log("Missing ETH_RPC_URL env var.");
+  process.exit();
+}
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -39,7 +43,7 @@ module.exports = {
         interval: [3000, 6000]
       },
       forking: {
-        url: "http://192.168.1.111:8545/",
+        url: ETH_RPC_URL,
         // blockNumber: 12684860 // 1624376308
         // blockNumber: 12684984 // 1624377849
         // blockNumber: 12708938 // ETH-A
