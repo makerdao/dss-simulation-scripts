@@ -13,7 +13,7 @@ yarn install
 ### Compile contracts
 
 ```
-npx hardhat compile
+yarn hardhat compile
 ```
 
 ### Start the server
@@ -23,6 +23,11 @@ npx hardhat compile
 ```
 
 ## Running Scripts
+
+### set the OSM price for an asset
+```
+HARDHAT_NETWORK=localhost ./scripts/setOSMPrice.js "ETH-A" ${PIP_ETH} 4000
+```
 
 ### Trigger ES
 ```
@@ -39,16 +44,11 @@ HARDHAT_NETWORK=localhost ./scripts/voidOSM.js
 HARDHAT_NETWORK=localhost ./scripts/warp.js 7200
 ```
 
-### set the OSM price for an asset
-```
-HARDHAT_NETWORK=localhost ./scripts/setOSMPrice.js "ETH-A" ${PIP_ETH} 4000
-```
-
 ## debug notes
 
 - Set the block where the error happened in the `hardhat.config.js` file.
 
-- make point client at http://127.0.0.1:8545/
+- make client point at http://127.0.0.1:8545/
 
 - reproduce error if you can.  You can see the error message in the hardhat
 output.  If you get the bytes for the transaction, save it to a file called
