@@ -46,8 +46,6 @@ HARDHAT_NETWORK=localhost ./scripts/setOSMPrice.js "ETH-A" ${PIP_ETH} 4000
 
 ## debug notes
 
-- Set the `ETH_RPC_URL` to be an archive node.
-
 - Set the block where the error happened in the `hardhat.config.js` file.
 
 - make point client at http://127.0.0.1:8545/
