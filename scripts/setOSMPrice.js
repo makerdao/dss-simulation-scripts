@@ -7,7 +7,12 @@ const hre = require("hardhat");
 const ethers = hre.ethers;
 
 const ETH_FROM    = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
+const MCD_VAT     = "0x35d1b3f3d7966a1dfe207aa4514c12a259a0492b";
 const MCD_SPOT    = "0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3";
+const RAY_DIGITS  = 27;
+
+const SPOTABI = JSON.parse(fs.readFileSync('./abi/spot.json', 'UTF-8'));
+const VATABI = JSON.parse(fs.readFileSync('./abi/vat.json', 'UTF-8'));
 
 const args = process.argv.slice(2);
 
@@ -17,7 +22,12 @@ const OSM = args[1] || "0x81FE72B5A8d1A857d176C3E7d5Bd2679A9B85763";
 const PRICE = parseInt(args[2]) || 1;
 
 async function setOSMPrice(ilk, osm, price) {
-  let signer = await ethers.getSigner(ETH_FROM);
+
+  process.stdout.write("price before: ")
+  process.stdout.write(await getOSMPrice(ilk));
+  process.stdout.write("\n");
+
+  const signer = await ethers.getSigner(ETH_FROM);
 
   // Hacking cur price
   const slot = "0x3";
@@ -31,13 +41,22 @@ async function setOSMPrice(ilk, osm, price) {
     params: [osm, slot, ret.stdout.trim()]
   });
 
-  const SPOTABI = JSON.parse(fs.readFileSync('./abi/spot.json').toString());
   const spot = await ethers.getContractAt(SPOTABI, MCD_SPOT, signer);
 
   // now we poke() to pull in the new price
   await spot.poke(ilk);
 
   await hre.network.provider.send("evm_mine");
+
+  process.stdout.write("price after:  ");
+  process.stdout.write(await getOSMPrice(ilk));
+  process.stdout.write("\n");
+}
+
+const getOSMPrice = async ilk => {
+  const vat = await ethers.getContractAt(VATABI, MCD_VAT);
+  const spot = (await vat.ilks(ilk)).spot;
+  return ethers.utils.commify(ethers.utils.formatUnits(spot, unit=RAY_DIGITS));
 }
 
 setOSMPrice(ILK, OSM, PRICE)
