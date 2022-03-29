@@ -5,7 +5,7 @@
 ### Install dependencies
 
 ```
-npm i
+yarn install
 ```
 
 ### Set the `ETH_RPC_URL` env var to an archival node endpoint
@@ -46,9 +46,7 @@ HARDHAT_NETWORK=localhost ./scripts/setOSMPrice.js "ETH-A" ${PIP_ETH} 4000
 
 ## debug notes
 
-- Set the RPC host to be an archive node in `hardhat.config.js`.
-
-- Set the `ETH_RPC_URL` to be the same archive node.
+- Set the `ETH_RPC_URL` to be an archive node.
 
 - Set the block where the error happened in the `hardhat.config.js` file.
 
