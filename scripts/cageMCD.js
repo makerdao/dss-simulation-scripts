@@ -15,28 +15,13 @@ async function main() {
   let signer = await ethers.getSigner(ETH_FROM);
   let signerAddress = await signer.getAddress();
 
-  //
-  // check balances for pause proxy and give it some ETH to run transactions
-  //
-
-  // balance ETH_FROM
-  let balance = await ethers.provider.getBalance(ETH_FROM);
-  console.log(signerAddress + ': ' + ethers.utils.formatEther(balance));
-
   // balance PAUSE_PROXY
   balance = await ethers.provider.getBalance(PAUSE_PROXY);
   console.log(PAUSE_PROXY + ': ' + ethers.utils.formatEther(balance));
 
   // send eth to the pause proxy
-  const SendEthDamnit = await ethers.getContractFactory("SendEthDamnit");
-  const sendEthDamnit = await SendEthDamnit.deploy(PAUSE_PROXY);
-
-  // Send 10 ether to SendEthDamnit
-  let tx = await signer.sendTransaction({
-    to: sendEthDamnit.address,
-    value: ethers.utils.parseEther("10.0")
-  });
-  tx = await sendEthDamnit.send();
+  await hre.network.provider.send("hardhat_setCoinbase", [PAUSE_PROXY]);
+  await hre.network.provider.send("evm_mine");
 
   // balance PAUSE_PROXY
   balance = await ethers.provider.getBalance(PAUSE_PROXY);

@@ -19,17 +19,6 @@ module.exports = {
         },
       }
     ],
-    overrides: {
-      "contracts/SendEthDamnit.sol": {
-        version: "0.6.12",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200
-          }
-        }
-      }
-    }
   },
   defaultNetwork: "hardhat",
   networks: {
