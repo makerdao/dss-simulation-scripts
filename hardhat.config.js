@@ -23,12 +23,13 @@ module.exports = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
+      loggingEnabled: true,
       mining: {
         auto: true,
         interval: [3000, 6000]
       },
       forking: {
-        url: "http://192.168.1.111:8545/",
+        url: process.env['ETH_RPC_URL'] || "",
         // blockNumber: 12684860 // 1624376308
         // blockNumber: 12684984 // 1624377849
         // blockNumber: 12708938 // ETH-A
