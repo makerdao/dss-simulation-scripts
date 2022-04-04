@@ -1,6 +1,21 @@
 # dss-simulation-scripts
 
-## Start the server
+## Installation
+
+```
+yarn
+```
+
+## Inital steps
+
+### Set environment variables
+
+```
+export ETH_RPC_URL=https://eth-mainnet.alchemyapi.io/v2/...
+export HARDHAT_NETWORK=localhost
+```
+
+### Start the forked mainnet server
 
 ```
 ./bin/start.sh
@@ -8,38 +23,34 @@
 
 ## Running Scripts
 
-### Trigger ES
+### set the OSM price for an asset
 ```
-HARDHAT_NETWORK=localhost ./scripts/cageMCD.js
+./scripts/setOSMPrice.js "ETH-A" ${PIP_ETH} 4000
 ```
 
 ### Void the OSM for ETH
 ```
-HARDHAT_NETWORK=localhost ./scripts/voidOSM.js
+./scripts/voidOSM.js
 ```
 
 ### warp ahead by seconds
 ```
-HARDHAT_NETWORK=localhost ./scripts/warp.js 7200
+./scripts/warp.js 7200
 ```
 
-### set the OSM price for an asset
+### Trigger ES
 ```
-HARDHAT_NETWORK=localhost ./scripts/setOSMPrice.js "ETH-A" ${PIP_ETH} 4000
+./scripts/cageMCD.js
 ```
 
 ## debug notes
 
-- Set the RPC host to be an archive node in `hardhat.config.js`.
-
-- Set the `ETH_RPC_URL` to be the same archive node.
-
 - Set the block where the error happened in the `hardhat.config.js` file.
 
-- make point client at http://127.0.0.1:8545/
+- make client point at http://127.0.0.1:8545/
 
-- reproduce error if you can.  You can see the error message in the hardhat
-output.  If you get the bytes for the transaction, save it to a file called
+- reproduce error if you can. You can see the error message in the hardhat
+output. If you get the bytes for the transaction, save it to a file called
 `calldata` and then you can send it with `seth`:
 ```
 seth send <TO> $(cat ./calldata)
