@@ -24,7 +24,9 @@ export HARDHAT_NETWORK=localhost
 ## Running Scripts
 
 ### set the OSM price for an asset
+
 ```
+export PIP_ETH=0x81fe72b5a8d1a857d176c3e7d5bd2679a9b85763
 ./scripts/setOSMPrice.js "ETH-A" ${PIP_ETH} 4000
 ```
 
