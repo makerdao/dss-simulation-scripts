@@ -11,60 +11,60 @@ const PAUSE_PROXY = "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB";
 const PIP_ETH     = "0x81FE72B5A8d1A857d176C3E7d5Bd2679A9B85763";
 const PIP_USDC    = "0x77b68899b99b686F415d074278a9a16b336085A0";
 
-// test voidOSM
-async function main() {
-  let signer = await ethers.getSigner(ETH_FROM);
-  let signerAddress = await signer.getAddress();
+const sendEth = async (address, amount) => {
+  await hre.network.provider.send("hardhat_setCoinbase", [address]);
+  for (let i = 0; i < Math.floor(Math.ceil(amount + 1) / 2); i ++) {
+    await hre.network.provider.send("evm_mine");
+  }
+  await hre.network.provider.send(
+    "hardhat_setCoinbase",
+    [ethers.constants.AddressZero]
+  );
+}
 
-  // balance PAUSE_PROXY
-  balance = await ethers.provider.getBalance(PAUSE_PROXY);
-  console.log(PAUSE_PROXY + ': ' + ethers.utils.formatEther(balance));
-
-  // send eth to the pause proxy
-  await hre.network.provider.send("hardhat_setCoinbase", [PAUSE_PROXY]);
-  await hre.network.provider.send("evm_mine");
-
-  // balance PAUSE_PROXY
-  balance = await ethers.provider.getBalance(PAUSE_PROXY);
-  console.log(PAUSE_PROXY + ': ' + ethers.utils.formatEther(balance));
-
+const impersonate = async (address, callback) => {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [PAUSE_PROXY]
+    params: [address]
   });
-
-  signer = await ethers.getSigner(PAUSE_PROXY);
-
-  //
-  // Everthing below here happens as the pause proxy
-  //
-  const OSMABI = JSON.parse(fs.readFileSync('./abi/OSM.json').toString());
-  const osm = await ethers.getContractAt(OSMABI, PIP_ETH, signer);
-
-  await hre.network.provider.request({
-    method: "hardhat_impersonateAccount",
-    params: [PAUSE_PROXY]
-  });
-
-  // change the PIP_ETH src to the USDC DSValue which is hardcoded to 1
-  // causing the next poke() to pull in a > 50% price drop. 
-  await osm.change(PIP_USDC);
-
-  // time warp
-  await hre.network.provider.request({
-    method: "evm_increaseTime",
-    params: [3600]
-  });
-
-  // now we poke() to pull in the new price
-  await osm.poke();
-
-  // switch back to ETH_FROM
+  const signer = await ethers.getSigner(PAUSE_PROXY);
+  await sendEth(address, 1);
+  await callback(signer);
   await hre.network.provider.request({
     method: "hardhat_stopImpersonatingAccount",
-    params: [PAUSE_PROXY]
+    params: [address]
   });
-  signer = await ethers.getSigner(ETH_FROM);
+}
+
+// test voidOSM
+async function main() {
+  const signer = await ethers.getSigner(ETH_FROM);
+
+  // balance PAUSE_PROXY
+  balance = await ethers.provider.getBalance(PAUSE_PROXY);
+  console.log(PAUSE_PROXY + ': ' + ethers.utils.formatEther(balance));
+
+  await impersonate(PAUSE_PROXY, async signer => {
+    // balance PAUSE_PROXY
+    balance = await ethers.provider.getBalance(PAUSE_PROXY);
+    console.log(PAUSE_PROXY + ': ' + ethers.utils.formatEther(balance));
+
+    const OSMABI = JSON.parse(fs.readFileSync('./abi/OSM.json').toString());
+    const osm = await ethers.getContractAt(OSMABI, PIP_ETH, signer);
+
+    // change the PIP_ETH src to the USDC DSValue which is hardcoded to 1
+    // causing the next poke() to pull in a > 50% price drop.
+    await osm.change(PIP_USDC);
+
+    // time warp
+    await hre.network.provider.request({
+      method: "evm_increaseTime",
+      params: [3600]
+    });
+
+    // now we poke() to pull in the new price
+    await osm.poke();
+  });
 }
 
 main()
