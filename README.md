@@ -15,6 +15,12 @@ export ETH_RPC_URL=https://eth-mainnet.alchemyapi.io/v2/...
 export HARDHAT_NETWORK=localhost
 ```
 
+### Compile contracts
+
+```
+yarn hardhat compile
+```
+
 ### Start the forked mainnet server
 
 ```
