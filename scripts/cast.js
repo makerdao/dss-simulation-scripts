@@ -1,6 +1,7 @@
 const fs = require("fs");
 const hre = require("hardhat");
 const ethers = hre.ethers;
+const provider = hre.network.provider;
 const chainlog = require("./chainlog.js");
 
 const deployAction = async () => {
@@ -12,21 +13,11 @@ const deployAction = async () => {
   return instance.address;
 }
 
-const ownPauseProxy = async () => {
-  const PAUSE_PROXY = await chainlog("MCD_PAUSE_PROXY");
-  const [signer] = await ethers.getSigners();
-  const signerAddress32 = ethers.utils.hexZeroPad(signer.address, 32);
-  await hre.network.provider.request({
-    method: "hardhat_setStorageAt",
-    params: [PAUSE_PROXY, "0x0", signerAddress32]
-  });
-}
-
 const getHat = async () => {
   const chiefAddr = await chainlog("MCD_ADM");
   const [signer] = await ethers.getSigners();
   const signerAddr32 = ethers.utils.hexZeroPad(signer.address, 32);
-  await hre.network.provider.request({
+  await provider.request({
     method: "hardhat_setStorageAt",
     params: [chiefAddr, "0xc", signerAddr32]
   });
@@ -45,7 +36,7 @@ const getCalldata = (sig, params) => {
   return data;
 }
 
-const plot = async (actionAddr, data) => {
+const exec = async (actionAddr, calldata) => {
   const pauseAbi = [
     "function delay() external view returns (uint256)",
     "function plot(address usr, bytes32 tag, bytes memory fax, uint eta) external",
@@ -54,28 +45,25 @@ const plot = async (actionAddr, data) => {
   const pauseAddr = await chainlog("MCD_PAUSE");
   const [signer] = await ethers.getSigners();
   const pause = await ethers.getContractAt(pauseAbi, pauseAddr, signer);
-  const actionCode = await hre.network.provider.request({
+  const actionCode = await provider.request({
     method: "eth_getCode",
     params: [actionAddr]
   });
   const tag = ethers.utils.keccak256(actionCode);
-  // pause.plot(actionAddr, tag, data
-}
-
-const exec = async (address, calldata) => {
-  const PAUSE_PROXY_ABI = JSON.parse(fs.readFileSync("./abi/pauseProxy.json", "utf-8"));
-  const [signer] = await ethers.getSigners();
-  const PAUSE_PROXY = await chainlog("MCD_PAUSE_PROXY");
-  const pauseProxy = await ethers.getContractAt(PAUSE_PROXY_ABI, PAUSE_PROXY, signer);
-  await pauseProxy.exec(address, calldata);
+  const delay = await pause.delay();
+  const eta = Math.round(Date.now() / 1000) + delay.toNumber();
+  await pause.plot(actionAddr, tag, calldata, eta);
+  await provider.request({
+    method: "evm_setNextBlockTimestamp",
+    params: [eta]
+  });
+  await pause.exec(actionAddr, tag, calldata, eta);
 }
 
 const cast = async (sig, params) => {
   const actionAddr = await deployAction();
+  await getHat();
   const calldata = getCalldata(sig, params);
-  // await getHat();
-  // await plot(actionAddr);
-  await ownPauseProxy();
   await exec(actionAddr, calldata);
 }
 
