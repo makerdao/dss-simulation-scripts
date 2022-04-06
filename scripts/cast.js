@@ -32,6 +32,19 @@ const getHat = async () => {
   });
 }
 
+const getCalldata = (sig, params) => {
+  const sigFragment = ethers.utils.FunctionFragment.from(sig);
+  const selector = ethers.utils.Interface.getSighash(sigFragment);
+  const types = [];
+  for (input of sigFragment.inputs) {
+    types.push(input.type);
+  }
+  const coder = ethers.utils.defaultAbiCoder;
+  const paramData = coder.encode(types, params);
+  const data = selector + paramData.substring(2);
+  return data;
+}
+
 const plot = async (actionAddr, data) => {
   const pauseAbi = [
     "function delay() external view returns (uint256)",
@@ -49,29 +62,21 @@ const plot = async (actionAddr, data) => {
   // pause.plot(actionAddr, tag, data
 }
 
-const exec = async (address, sig, params) => {
+const exec = async (address, calldata) => {
   const PAUSE_PROXY_ABI = JSON.parse(fs.readFileSync("./abi/pauseProxy.json", "utf-8"));
   const [signer] = await ethers.getSigners();
   const PAUSE_PROXY = await chainlog("MCD_PAUSE_PROXY");
   const pauseProxy = await ethers.getContractAt(PAUSE_PROXY_ABI, PAUSE_PROXY, signer);
-  const sigFragment = ethers.utils.FunctionFragment.from(sig);
-  const selector = ethers.utils.Interface.getSighash(sigFragment);
-  const coder = ethers.utils.defaultAbiCoder;
-  const types = [];
-  for (input of sigFragment.inputs) {
-    types.push(input.type);
-  }
-  const paramData = coder.encode(types, params);
-  const data = selector + paramData.substring(2);
-  await pauseProxy.exec(address, data);
+  await pauseProxy.exec(address, calldata);
 }
 
 const cast = async (sig, params) => {
   const actionAddr = await deployAction();
+  const calldata = getCalldata(sig, params);
   // await getHat();
   // await plot(actionAddr);
   await ownPauseProxy();
-  await exec(actionAddr, sig, params);
+  await exec(actionAddr, calldata);
 }
 
 module.exports = cast;
