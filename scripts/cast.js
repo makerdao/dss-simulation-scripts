@@ -22,6 +22,33 @@ const ownPauseProxy = async () => {
   });
 }
 
+const getHat = async () => {
+  const chiefAddr = await chainlog("MCD_ADM");
+  const [signer] = await ethers.getSigners();
+  const signerAddr32 = ethers.utils.hexZeroPad(signer.address, 32);
+  await hre.network.provider.request({
+    method: "hardhat_setStorageAt",
+    params: [chiefAddr, "0xc", signerAddr32]
+  });
+}
+
+const plot = async (actionAddr, data) => {
+  const pauseAbi = [
+    "function delay() external view returns (uint256)",
+    "function plot(address usr, bytes32 tag, bytes memory fax, uint eta) external",
+    "function exec(address usr, bytes32 tag, bytes memory fax, uint eta) external"
+  ];
+  const pauseAddr = await chainlog("MCD_PAUSE");
+  const [signer] = await ethers.getSigners();
+  const pause = await ethers.getContractAt(pauseAbi, pauseAddr, signer);
+  const actionCode = await hre.network.provider.request({
+    method: "eth_getCode",
+    params: [actionAddr]
+  });
+  const tag = ethers.utils.keccak256(actionCode);
+  // pause.plot(actionAddr, tag, data
+}
+
 const exec = async (address, sig, params) => {
   const PAUSE_PROXY_ABI = JSON.parse(fs.readFileSync("./abi/pauseProxy.json", "utf-8"));
   const [signer] = await ethers.getSigners();
@@ -40,9 +67,11 @@ const exec = async (address, sig, params) => {
 }
 
 const cast = async (sig, params) => {
-  const action = await deployAction();
+  const actionAddr = await deployAction();
+  // await getHat();
+  // await plot(actionAddr);
   await ownPauseProxy();
-  await exec(action, sig, params);
+  await exec(actionAddr, sig, params);
 }
 
 module.exports = cast;
