@@ -51,7 +51,8 @@ const exec = async (actionAddr, calldata) => {
   });
   const tag = ethers.utils.keccak256(actionCode);
   const delay = await pause.delay();
-  const eta = Math.round(Date.now() / 1000) + delay.toNumber();
+  const block = await ethers.provider.getBlock();
+  const eta = block.timestamp + delay.toNumber() + 2;
   await pause.plot(actionAddr, tag, calldata, eta);
   await provider.request({
     method: "evm_setNextBlockTimestamp",
