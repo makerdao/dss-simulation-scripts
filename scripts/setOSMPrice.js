@@ -20,15 +20,14 @@ async function setOSMPrice(ilk, osm, price) {
   let signer = await ethers.getSigner(ETH_FROM);
 
   // Hacking cur price
-  const slot = "0x3";
-  const cmd = "seth --to-bytes32 $(seth --to-uint256 $(echo '" + price +
-    " * 10^18' | bc))|" +
-    "sed 's/0x00000000000000000000000000000000/0x00000000000000000000000000000001/'";
-  const ret = await exec(cmd);
+  const slot = "0x3"; // cur
+  const price18 = ethers.FixedNumber.from(price);
+  const types = ["uint128", "uint128"]; // has, val
+  const data = ethers.utils.solidityPack(types, [1, price18]);
 
   await hre.network.provider.request({
     method: "hardhat_setStorageAt",
-    params: [osm, slot, ret.stdout.trim()]
+    params: [osm, slot, data]
   });
 
   const SPOTABI = JSON.parse(fs.readFileSync('./abi/spot.json').toString());
