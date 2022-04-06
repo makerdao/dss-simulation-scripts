@@ -23,6 +23,33 @@ const getHat = async () => {
   });
 }
 
+const getMKR = async amount => {
+  const govAbi = [
+    "function balanceOf(address) external view returns (uint256)"
+  ];
+  const govAddr = await chainlog("MCD_GOV");
+  const [signer] = await ethers.getSigners();
+  const addr32 = ethers.utils.hexZeroPad(signer.address, 32);
+  const slot32 = ethers.utils.hexZeroPad("0x01", 32);
+  const concat = addr32 + slot32.substring(2);
+  const hash = ethers.utils.keccak256(concat);
+  const amountHex = ethers.FixedNumber.from(amount).toHexString();
+  const amountHex32 = ethers.utils.hexZeroPad(amountHex, 32);
+  await provider.request({
+    method: "hardhat_setStorageAt",
+    params: [govAddr, hash, amountHex32]
+  });
+}
+
+const vote = async () => {
+  const chiefAbi = [
+    "function etch(address[]) external returns (bytes32)",
+    "function vote(bytes32) external",
+    "function lift(address) external"
+  ];
+  const chiefAddr = await chainlog("MCD_ADM");
+}
+
 const getCalldata = (sig, params) => {
   const sigFragment = ethers.utils.FunctionFragment.from(sig);
   const selector = ethers.utils.Interface.getSighash(sigFragment);
@@ -52,7 +79,7 @@ const exec = async (actionAddr, calldata) => {
   const tag = ethers.utils.keccak256(actionCode);
   const delay = await pause.delay();
   const block = await ethers.provider.getBlock();
-  const eta = block.timestamp + delay.toNumber() + 2;
+  const eta = block.timestamp + delay.toNumber() + 3;
   await pause.plot(actionAddr, tag, calldata, eta);
   await provider.request({
     method: "evm_setNextBlockTimestamp",
@@ -64,6 +91,8 @@ const exec = async (actionAddr, calldata) => {
 const cast = async (sig, params) => {
   const actionAddr = await deployAction();
   await getHat();
+  await getMKR(13);
+  await vote(actionAddr);
   const calldata = getCalldata(sig, params);
   await exec(actionAddr, calldata);
 }
