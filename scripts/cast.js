@@ -1,12 +1,10 @@
-#!/usr/bin/env node
-
 const fs = require("fs");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-
-const PAUSE_PROXY = "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB";
+const chainlog = require("./chainlog.js");
 
 const ownPauseProxy = async () => {
+  const PAUSE_PROXY = await chainlog("MCD_PAUSE_PROXY");
   const [signer] = await ethers.getSigners();
   const signerAddress32 = ethers.utils.hexZeroPad(signer.address, 32);
   await hre.network.provider.request({
@@ -19,6 +17,7 @@ const exec = async (address, sig, params) => {
   await ownPauseProxy();
   const PAUSE_PROXY_ABI = JSON.parse(fs.readFileSync("./abi/pauseProxy.json", "utf-8"));
   const [signer] = await ethers.getSigners();
+  const PAUSE_PROXY = await chainlog("MCD_PAUSE_PROXY");
   const pauseProxy = await ethers.getContractAt(PAUSE_PROXY_ABI, PAUSE_PROXY, signer);
   const sigFragment = ethers.utils.FunctionFragment.from(sig);
   const selector = ethers.utils.Interface.getSighash(sigFragment);
