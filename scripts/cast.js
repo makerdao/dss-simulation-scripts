@@ -13,16 +13,6 @@ const deployAction = async () => {
   return instance.address;
 }
 
-const getHat = async () => {
-  const chiefAddr = await chainlog("MCD_ADM");
-  const [signer] = await ethers.getSigners();
-  const signerAddr32 = ethers.utils.hexZeroPad(signer.address, 32);
-  await provider.request({
-    method: "hardhat_setStorageAt",
-    params: [chiefAddr, "0xc", signerAddr32]
-  });
-}
-
 const getMKR = async amount => {
   const govAbi = [
     "function balanceOf(address) external view returns (uint256)"
@@ -41,13 +31,16 @@ const getMKR = async amount => {
   });
 }
 
-const vote = async actionAddr => {
+const vote = async amountMkr => {
   const govAbi = [
     "function approve(address, uint256) external"
   ];
   const chiefAbi = [
+    "function lock(uint256) external",
     "function etch(address[]) external returns (bytes32)",
     "function vote(bytes32) external",
+    "function approvals(address) external view returns (uint256)",
+    "function hat() external view returns (address)",
     "function lift(address) external"
   ];
   const govAddr = await chainlog("MCD_GOV");
@@ -56,14 +49,18 @@ const vote = async actionAddr => {
   const gov = await ethers.getContractAt(govAbi, govAddr, signer);
   const chief = await ethers.getContractAt(chiefAbi, chiefAddr, signer);
 
-  await gov.approve(chiefAddr, ethers.constants.MaxUint256);
-  // await chief.lock();
+  const amountMkrWad = ethers.FixedNumber.from(amountMkr);
+  await gov.approve(chiefAddr, amountMkrWad);
+  await chief.lock(amountMkrWad);
 
-  const tx = await chief.etch([actionAddr]);
-  const actionAddr32 = ethers.utils.hexZeroPad(actionAddr, 32);
-  const slate = ethers.utils.keccak256(actionAddr32);
+  const tx = await chief.etch([signer.address]);
+  const signerAddr32 = ethers.utils.hexZeroPad(signer.address, 32);
+  const slate = ethers.utils.keccak256(signerAddr32);
 
-  // await chief.vote(slate);
+  await chief.vote(slate);
+  console.log(await chief.hat(), (await chief.approvals(await chief.hat())).toString());
+  console.log(signer.address, (await chief.approvals(signer.address)).toString());
+  await chief.lift(signer.address);
 }
 
 const getCalldata = (sig, params) => {
@@ -106,9 +103,9 @@ const exec = async (actionAddr, calldata) => {
 
 const cast = async (sig, params) => {
   const actionAddr = await deployAction();
-  await getHat();
-  await getMKR(13);
-  await vote(actionAddr);
+  const amountMkr = 9999999999999;
+  await getMKR(amountMkr);
+  await vote(amountMkr);
   const calldata = getCalldata(sig, params);
   await exec(actionAddr, calldata);
 }
