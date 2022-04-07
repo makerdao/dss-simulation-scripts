@@ -58,7 +58,7 @@ const vote = async amountMkr => {
   await gov.approve(chiefAddr, amountMkr);
   await chief.lock(amountMkr);
 
-  const tx = await chief.etch([signer.address]);
+  await chief.etch([signer.address]);
   const signerAddr32 = ethers.utils.hexZeroPad(signer.address, 32);
   const slate = ethers.utils.keccak256(signerAddr32);
 
