@@ -4,14 +4,6 @@ const ethers = hre.ethers;
 const provider = hre.network.provider;
 const chainlog = require("./chainlog.js");
 
-const deployAction = async () => {
-  const path = "./artifacts/contracts/Action.sol/Action.json";
-  const contract = JSON.parse(fs.readFileSync(path, "utf-8"));
-  const [signer] = await ethers.getSigners();
-  const factory = new ethers.ContractFactory(contract.abi, contract.bytecode, signer);
-  const instance = await factory.deploy();
-  return instance.address;
-}
 
 const getAmountMkr = async () => {
   const chiefAbi = [
@@ -49,11 +41,10 @@ const vote = async amountMkr => {
     "function approve(address, uint256) external"
   ];
   const chiefAbi = [
+    "function hat() external view returns (address)",
     "function lock(uint256) external",
     "function etch(address[]) external returns (bytes32)",
     "function vote(bytes32) external",
-    "function approvals(address) external view returns (uint256)",
-    "function hat() external view returns (address)",
     "function lift(address) external"
   ];
   const govAddr = await chainlog("MCD_GOV");
@@ -61,6 +52,8 @@ const vote = async amountMkr => {
   const [signer] = await ethers.getSigners();
   const gov = await ethers.getContractAt(govAbi, govAddr, signer);
   const chief = await ethers.getContractAt(chiefAbi, chiefAddr, signer);
+
+  if (await chief.hat() === signer.address) return;
 
   await gov.approve(chiefAddr, amountMkr);
   await chief.lock(amountMkr);
@@ -70,9 +63,16 @@ const vote = async amountMkr => {
   const slate = ethers.utils.keccak256(signerAddr32);
 
   await chief.vote(slate);
-  console.log(await chief.hat(), (await chief.approvals(await chief.hat())).toString());
-  console.log(signer.address, (await chief.approvals(signer.address)).toString());
   await chief.lift(signer.address);
+}
+
+const deployAction = async () => {
+  const path = "./artifacts/contracts/Action.sol/Action.json";
+  const contract = JSON.parse(fs.readFileSync(path, "utf-8"));
+  const [signer] = await ethers.getSigners();
+  const factory = new ethers.ContractFactory(contract.abi, contract.bytecode, signer);
+  const instance = await factory.deploy();
+  return instance.address;
 }
 
 const getCalldata = (sig, params) => {
@@ -114,10 +114,10 @@ const exec = async (actionAddr, calldata) => {
 }
 
 const cast = async (sig, params) => {
-  const actionAddr = await deployAction();
   const amountMkr = await getAmountMkr();
   await getMkr(amountMkr);
   await vote(amountMkr);
+  const actionAddr = await deployAction();
   const calldata = getCalldata(sig, params);
   await exec(actionAddr, calldata);
 }
