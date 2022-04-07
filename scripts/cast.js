@@ -13,7 +13,20 @@ const deployAction = async () => {
   return instance.address;
 }
 
-const getMKR = async amount => {
+const getAmountMkr = async () => {
+  const chiefAbi = [
+    "function hat() external view returns (address)",
+    "function approvals(address) external view returns (uint256)"
+  ];
+  const chiefAddr = await chainlog("MCD_ADM");
+  const chief = await ethers.getContractAt(chiefAbi, chiefAddr);
+  const hat = await chief.hat();
+  const currentApprovals = await chief.approvals(hat);
+  const nextApprovals = currentApprovals.add(1);
+  return nextApprovals;
+}
+
+const getMkr = async amount => {
   const govAbi = [
     "function balanceOf(address) external view returns (uint256)"
   ];
@@ -23,7 +36,7 @@ const getMKR = async amount => {
   const slot32 = ethers.utils.hexZeroPad("0x01", 32);
   const concat = addr32 + slot32.substring(2);
   const hash = ethers.utils.keccak256(concat);
-  const amountHex = ethers.FixedNumber.from(amount).toHexString();
+  const amountHex = amount.toHexString();
   const amountHex32 = ethers.utils.hexZeroPad(amountHex, 32);
   await provider.request({
     method: "hardhat_setStorageAt",
@@ -49,9 +62,8 @@ const vote = async amountMkr => {
   const gov = await ethers.getContractAt(govAbi, govAddr, signer);
   const chief = await ethers.getContractAt(chiefAbi, chiefAddr, signer);
 
-  const amountMkrWad = ethers.FixedNumber.from(amountMkr);
-  await gov.approve(chiefAddr, amountMkrWad);
-  await chief.lock(amountMkrWad);
+  await gov.approve(chiefAddr, amountMkr);
+  await chief.lock(amountMkr);
 
   const tx = await chief.etch([signer.address]);
   const signerAddr32 = ethers.utils.hexZeroPad(signer.address, 32);
@@ -103,8 +115,8 @@ const exec = async (actionAddr, calldata) => {
 
 const cast = async (sig, params) => {
   const actionAddr = await deployAction();
-  const amountMkr = 9999999999999;
-  await getMKR(amountMkr);
+  const amountMkr = await getAmountMkr();
+  await getMkr(amountMkr);
   await vote(amountMkr);
   const calldata = getCalldata(sig, params);
   await exec(actionAddr, calldata);
