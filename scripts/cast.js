@@ -41,13 +41,29 @@ const getMKR = async amount => {
   });
 }
 
-const vote = async () => {
+const vote = async actionAddr => {
+  const govAbi = [
+    "function approve(address, uint256) external"
+  ];
   const chiefAbi = [
     "function etch(address[]) external returns (bytes32)",
     "function vote(bytes32) external",
     "function lift(address) external"
   ];
+  const govAddr = await chainlog("MCD_GOV");
   const chiefAddr = await chainlog("MCD_ADM");
+  const [signer] = await ethers.getSigners();
+  const gov = await ethers.getContractAt(govAbi, govAddr, signer);
+  const chief = await ethers.getContractAt(chiefAbi, chiefAddr, signer);
+
+  await gov.approve(chiefAddr, ethers.constants.MaxUint256);
+  // await chief.lock();
+
+  const tx = await chief.etch([actionAddr]);
+  const actionAddr32 = ethers.utils.hexZeroPad(actionAddr, 32);
+  const slate = ethers.utils.keccak256(actionAddr32);
+
+  // await chief.vote(slate);
 }
 
 const getCalldata = (sig, params) => {
