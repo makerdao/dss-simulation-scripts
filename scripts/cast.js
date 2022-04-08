@@ -5,7 +5,7 @@ const provider = hre.network.provider;
 const chainlog = require("./chainlog.js");
 
 
-const getAmountMkr = async () => {
+const getApprovals = async () => {
   const chiefAbi = [
     "function hat() external view returns (address)",
     "function approvals(address) external view returns (uint256)"
@@ -13,9 +13,8 @@ const getAmountMkr = async () => {
   const chiefAddr = await chainlog("MCD_ADM");
   const chief = await ethers.getContractAt(chiefAbi, chiefAddr);
   const hat = await chief.hat();
-  const currentApprovals = await chief.approvals(hat);
-  const nextApprovals = currentApprovals.add(1);
-  return nextApprovals;
+  const approvals = await chief.approvals(hat);
+  return approvals;
 }
 
 const getMkr = async amount => {
@@ -114,9 +113,9 @@ const exec = async (actionAddr, calldata) => {
 }
 
 const cast = async (sig, params) => {
-  const amountMkr = await getAmountMkr();
-  await getMkr(amountMkr);
-  await vote(amountMkr);
+  const approvals = await getApprovals();
+  await getMkr(approvals.add(1));
+  await vote(approvals.add(1));
   const actionAddr = await deployAction();
   const calldata = getCalldata(sig, params);
   await exec(actionAddr, calldata);
