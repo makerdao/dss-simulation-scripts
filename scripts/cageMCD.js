@@ -9,15 +9,15 @@ const chainlog = require("./chainlog.js");
 
 // test cageMCD
 async function main() {
-  const endAbi = [
-    "function live() external view returns (uint256)"
-  ];
+  const vatAbi = ["function live() external view returns (uint256)"];
+  const vatAddr = await chainlog("MCD_VAT");
+  const vat = await ethers.getContractAt(vatAbi, vatAddr);
   const endAddr = await chainlog("MCD_END");
-  const end = await ethers.getContractAt(endAbi, endAddr);
 
   // This will cage MCD
+  assert.equal(await vat.live(), 1);
   await cast("cage(address)", [endAddr]);
-  assert.equal(await end.live(), 0);
+  assert.equal(await vat.live(), 0);
 }
 
 main()
