@@ -1,23 +1,24 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const { promisify } = require('util');
-const exec = promisify(require('child_process').exec)
+const assert = require("assert");
+const fs = require("fs");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-
-const ETH_FROM    = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
-const MCD_SPOT    = "0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3";
+const chainlog = require("./chainlog.js");
 
 const args = process.argv.slice(2);
 
-const ILK = ethers.utils.formatBytes32String(args[0]) ||
-  ethers.utils.formatBytes32String("ETH-A");
+const RAY = ethers.BigNumber.from(10).pow(27);
+
+const ILK = args[0] || "ETH-A";
+const ILK32 = ethers.utils.formatBytes32String(ILK);
 const OSM = args[1] || "0x81FE72B5A8d1A857d176C3E7d5Bd2679A9B85763";
 const PRICE = parseInt(args[2]) || 1;
 
+console.log(ILK, OSM, PRICE);
+
 async function setOSMPrice(ilk, osm, price) {
-  let signer = await ethers.getSigner(ETH_FROM);
+  const [signer] = await ethers.getSigners();
 
   // Hacking cur price
   const slot = "0x3"; // cur
@@ -30,16 +31,34 @@ async function setOSMPrice(ilk, osm, price) {
     params: [osm, slot, data]
   });
 
-  const SPOTABI = JSON.parse(fs.readFileSync('./abi/spot.json').toString());
-  const spot = await ethers.getContractAt(SPOTABI, MCD_SPOT, signer);
+  const spotterAbi = [
+    "function poke(bytes32) external",
+    "function ilks(bytes32) external view returns (address pip, uint256 mat)"
+  ];
+  const spotterAddr = chainlog("MCD_SPOT");
+  const spotter = await ethers.getContractAt(spotterAbi, spotterAddr, signer);
 
   // now we poke() to pull in the new price
-  await spot.poke(ilk);
+  await spotter.poke(ilk);
+
+  const vatAbi = ["function ilks(bytes32) external view returns (uint256 art, uint256 rate, uint256 spot, uint256 line, uint256 dust)"];
+  const vatAddr = await chainlog("MCD_VAT");
+  const vat = await ethers.getContractAt(vatAbi, vatAddr);
+  const spot = (await vat.ilks(ilk)).spot;
+  const mat = (await spotter.ilks(ilk)).mat;
+
+  const expected = ethers.BigNumber.from(price).mul(RAY);
+  const actual = spot.mul(mat).div(RAY);
+  const expectedPlus = expected.mul(101).div(100);
+  const expectedMinus = expected.mul(99).div(100);
+
+  assert(expectedPlus.gte(actual));
+  assert(expectedMinus.lte(actual));
 
   await hre.network.provider.send("evm_mine");
 }
 
-setOSMPrice(ILK, OSM, PRICE)
+setOSMPrice(ILK32, OSM, PRICE)
   .then(() => process.exit(0))
   .catch(error => {
     console.error(error);
