@@ -113,12 +113,17 @@ const exec = async (actionAddr, calldata) => {
 }
 
 const cast = async (sig, params) => {
+  console.log("minting MKR…");
   const approvals = await getApprovals();
   await getMkr(approvals.add(1));
+  console.log("voting…");
   await vote(approvals.add(1));
+  console.log("deploying spell action…");
   const actionAddr = await deployAction();
+  console.log("executing " + sig + "…");
   const calldata = getCalldata(sig, params);
   await exec(actionAddr, calldata);
+  console.log("done.");
 }
 
 module.exports = cast;
