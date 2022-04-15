@@ -6,6 +6,8 @@ const ethers = hre.ethers;
 const cast = require("./cast.js");
 const chainlog = require("./chainlog.js");
 
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
 
 const ES = async () => {
   const endAbi = [

@@ -9,7 +9,8 @@
     "hardhat": "^2.6.8"
   },
   "dependencies": {
-    "hardhat-change-network": "^0.0.7"
+    "hardhat-change-network": "^0.0.7",
+    "node-fetch": "^3.2.3"
   },
   "version": "1.22.18"
 }
