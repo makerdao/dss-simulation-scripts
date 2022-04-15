@@ -22,16 +22,40 @@ const ES = async () => {
   const ilkRegAddr = await chainlog("ILK_REGISTRY");
   const ilkReg = await ethers.getContractAt(ilkRegAbi, ilkRegAddr);
 
+  const spotterAbi = [
+    "function ilks(bytes32) external view returns (address,uint256)"
+  ];
+  const spotterAddr = await chainlog("MCD_SPOT");
+  const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
+
+  const DSValueAbi = ["function read() external view returns (bytes32)"];
+
   if ((await end.live()).toString() === "1") {
     await cast("cage(address)", [endAddr]);
   }
 
   const ilks = await ilkReg.list();
   for (const ilk of ilks) {
-    if (ilk === ethers.utils.formatBytes32String("RWA006-A")) continue;
-    if ((await end.tag(ilk)).toString() !== "0") continue;
-    console.log("caging " + ethers.utils.parseBytes32String(ilk));
+    console.log("tagging " + ethers.utils.parseBytes32String(ilk));
+    [pipAddr] = await spotter.ilks(ilk);
+    const pip = await ethers.getContractAt(DSValueAbi, pipAddr);
+    let value;
+    try {
+      value = await pip.read();
+    } catch (e) {
+      value = await hre.network.provider.send("eth_getStorageAt", [pipAddr, "0x3"]);
+    }
+    if (BigInt(value).toString() === "0") {
+      console.log("value is zero");
+      continue;
+    }
+    const tag = await end.tag(ilk);
+    if (tag.toString() !== "0") {
+      console.log("tag already set to " + tag);
+      continue;
+    }
     await end.cage(ilk);
+    console.log("tag set to " + (await end.tag(ilk)).toString());
   }
 }
 
