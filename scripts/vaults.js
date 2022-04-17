@@ -11,10 +11,6 @@ const login = async () => {
   return token;
 }
 
-const getVaultsPage = async (token, url) => {
-
-}
-
 const getVaults = async (token, ilk) => {
   const url = "https://data-api.makerdao.network/v1/vaults/current_state";
   const params = new URLSearchParams();
@@ -27,10 +23,20 @@ const getVaults = async (token, ilk) => {
   return data;
 }
 
+const filter = vaults => {
+  for (const vault of vaults) {
+    const {debt, collateral, osm_price: price, ratio} = vault;
+    const inkSpot = collateral * price / ratio;
+    if (debt > inkSpot) {
+      console.log(vault);
+    }
+  }
+}
+
 const vaults = async () => {
   const token = await login();
   const vaults = await getVaults(token, "ETH-A");
-  console.log(vaults);
+  filter(vaults);
 }
 
 vaults();
