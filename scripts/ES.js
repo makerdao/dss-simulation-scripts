@@ -55,7 +55,7 @@ const ES = async () => {
       continue;
     }
     await end.cage(ilk);
-    console.log("tag set to " + (await end.tag(ilk)).toString());
+    console.log("tag set to " + (await end.tag(ilk)));
   }
 }
 
