@@ -34,7 +34,8 @@ const ES = async () => {
 
   const ilks = await ilkReg.list();
   for (const ilk of ilks) {
-    console.log("tagging " + ethers.utils.parseBytes32String(ilk));
+    const prettyIlk = ethers.utils.parseBytes32String(ilk);
+    console.log("tagging " + prettyIlk);
     [pipAddr] = await spotter.ilks(ilk);
     const pip = await ethers.getContractAt(DSValueAbi, pipAddr);
     let value;
@@ -49,11 +50,13 @@ const ES = async () => {
     }
     const tag = await end.tag(ilk);
     if (tag.toString() !== "0") {
-      console.log("tag already set to " + tag);
+      const prettyTag = ethers.utils.formatUnits(tag, unit=27);
+      console.log(`tag already set at ${prettyTag} ${prettyIlk} per DAI`);
       continue;
     }
     await end.cage(ilk);
-    console.log("tag set to " + (await end.tag(ilk)));
+    const prettyTag = ethers.utils.formatUnits(await end.tag(ilk), unit=27);
+    console.log(`tag set at ${prettyTag} ${prettyIlk} per DAI`);
   }
 }
 
