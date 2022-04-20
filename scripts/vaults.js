@@ -54,7 +54,6 @@ const getUnder = async (ilk, urns) => {
     process.stdout.write(`${percentage}% : ${under.length} vaults found\r`);
     const [ink, art] = await vat.urns(ilk32, urn);
     if (art.mul(rate).gt(ink.mul(spot))) {
-      console.log(urn);
       under.push(urn);
     }
   }
@@ -67,6 +66,7 @@ const vaults = async () => {
   const token = await login();
   const urns = await getUrns(token, "ETH-A");
   const under = await getUnder("ETH-A", urns);
+  return under;
 }
 
-vaults();
+module.exports = vaults;

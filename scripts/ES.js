@@ -5,6 +5,7 @@ const hre = require("hardhat");
 const ethers = hre.ethers;
 const cast = require("./cast.js");
 const chainlog = require("./chainlog.js");
+const vaults = require("./vaults.js");
 
 
 const ES = async () => {
@@ -58,6 +59,8 @@ const ES = async () => {
     const prettyTag = ethers.utils.formatUnits(await end.tag(ilk), unit=27);
     console.log(`tag set at ${prettyTag} ${prettyIlk} per DAI`);
   }
+  const underVaults = await vaults();
+  console.log(underVaults);
 }
 
 ES();
