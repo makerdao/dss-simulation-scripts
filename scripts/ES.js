@@ -59,7 +59,7 @@ const ES = async () => {
     const prettyTag = ethers.utils.formatUnits(await end.tag(ilk), unit=27);
     console.log(`tag set at ${prettyTag} ${prettyIlk} per DAI`);
   }
-  const underVaults = await vaults();
+  const underVaults = await vaults("ETH-C");
   console.log(underVaults);
 }
 

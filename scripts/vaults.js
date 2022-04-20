@@ -26,10 +26,10 @@ const getUrns = async (token, ilk) => {
   const authHeader = {Authorization: "Bearer " + token};
   params.append("limit", 1000000);
   const urlWithParams = url + "?" + params.toString();
-  console.log("getting vault addresses…");
+  console.log(`getting vault addresses for ${ilk}…`);
   const response = await fetch(urlWithParams, {headers: authHeader});
-  console.log("done.");
   const vaults = await response.json();
+  console.log(`found ${vaults.length} vaults.`);
   const urns = [];
   for (vault of vaults) {
     urns.push(vault.urn);
@@ -57,15 +57,14 @@ const getUnder = async (ilk, urns) => {
       under.push(urn);
     }
   }
-  console.log("");
-  console.log(under.length + " vaults found");
+  console.log(under.length + " vaults found.              ");
   return under;
 }
 
-const vaults = async () => {
+const vaults = async ilk => {
   const token = await login();
-  const urns = await getUrns(token, "ETH-A");
-  const under = await getUnder("ETH-A", urns);
+  const urns = await getUrns(token, ilk);
+  const under = await getUnder(ilk, urns);
   return under;
 }
 
