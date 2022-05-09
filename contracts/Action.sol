@@ -12,6 +12,7 @@ interface Cageable {
 
 interface MedianLike {
     function drop(address[] calldata) external;
+    function lift(address[] calldata) external;
 }
 
 contract Action {
@@ -26,6 +27,10 @@ contract Action {
 
     function drop(address median, address[] calldata oracles) external {
         MedianLike(median).drop(oracles);
+    }
+
+    function lift(address median, address[] calldata oracles) external {
+        MedianLike(median).lift(oracles);
     }
 
 }

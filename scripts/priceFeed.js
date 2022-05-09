@@ -20,9 +20,14 @@ const setOracles = async ilk => {
     }
   }
   console.log("");
-  console.log(oracles);
   console.log("dropping oracles…");
   await cast("drop(address,address[])", [medianAddr, oracles]);
+  console.log("getting singer addresses…");
+  const signers = await ethers.getSigners();
+  const signerAddrs = [];
+  signers.forEach(signer => signerAddrs.push(signer.address));
+  console.log("lifting signers…");
+  await cast("lift(address,address[])", [medianAddr, signerAddrs]);
 }
 
 setOracles("ETH-A");
