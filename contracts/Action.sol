@@ -2,12 +2,16 @@
 
 pragma solidity ^0.6.12;
 
-interface PipLike { 
+interface PipLike {
     function change(address src) external;
 }
 
 interface Cageable {
     function cage() external;
+}
+
+interface MedianLike {
+    function drop(address[] calldata) external;
 }
 
 contract Action {
@@ -18,6 +22,10 @@ contract Action {
 
     function cage(address end) external {
         Cageable(end).cage();
+    }
+
+    function drop(address median, address[] calldata oracles) external {
+        MedianLike(median).drop(oracles);
     }
 
 }
