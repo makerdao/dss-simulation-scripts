@@ -4,14 +4,21 @@ const cast = require("./cast");
 const chainlog = require("./chainlog");
 
 
-const getMedian = async ilk => {
+const getOsm = async ilk => {
   const ilkBytes32 = ethers.utils.formatBytes32String(ilk);
   const ilkRegistryAbi = ["function pip(bytes32) external view returns (address)"];
   const ilkRegistryAddr = await chainlog("ILK_REGISTRY");
   const ilkRegistry = await ethers.getContractAt(ilkRegistryAbi, ilkRegistryAddr);
-  const osmAbi = ["function src() external view returns (address)"];
+  const osmAbi = [
+    "function src() external view returns (address)",
+    "function poke() external"
+  ];
   const osmAddr = await ilkRegistry.pip(ilkBytes32);
   const osm = await ethers.getContractAt(osmAbi, osmAddr)
+  return osm;
+}
+
+const getMedian = async osm => {
   const medianAbi = [
     "function slot(uint8) external view returns (address)",
     "function wat() external view returns (bytes32)",
@@ -49,7 +56,7 @@ const liftSigners = async median => {
   return signers;
 }
 
-const poke = async (median, signers, value) => {
+const pokeMedian = async (median, signers, value) => {
   const wad = ethers.BigNumber.from(10).pow(18);
   const val = ethers.BigNumber.from(value).mul(wad);
   const block = await ethers.provider.getBlock();
@@ -78,12 +85,24 @@ const poke = async (median, signers, value) => {
   await median.poke(vals, ages, vs, rs, ss);
 }
 
+const pokeSpotter = async ilk => {
+  console.log("poking the spotter…");
+  const ilkBytes32 = ethers.utils.formatBytes32String(ilk);
+  const spotterAbi = ["function poke(bytes32) external"];
+  const spotterAddr = await chainlog("MCD_SPOT");
+  const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
+  await spotter.poke(ilkBytes32);
+}
+
 const priceFeed = async (ilk, value) => {
   console.log(`setting new price ${value} for ilk ${ilk}…`);
-  const median = await getMedian(ilk);
+  const osm = await getOsm(ilk);
+  const median = await getMedian(osm);
   await dropOracles(median);
   const signers = await liftSigners(median);
-  await poke(median, signers, value);
+  await pokeMedian(median, signers, value);
+  await osm.poke();
+  await pokeSpotter(ilk);
   console.log("new price set.");
 }
 
