@@ -4,7 +4,7 @@ const cast = require("./cast");
 const chainlog = require("./chainlog");
 
 
-const priceFeed = async ilk => {
+const getMedian = async ilk => {
   const ilkBytes32 = ethers.utils.formatBytes32String(ilk);
   const ilkRegistryAbi = ["function pip(bytes32) external view returns (address)"];
   const ilkRegistryAddr = await chainlog("ILK_REGISTRY");
@@ -20,8 +20,12 @@ const priceFeed = async ilk => {
   ];
   const medianAddr = await osm.src();
   const median = await ethers.getContractAt(medianAbi, medianAddr);
+  return median;
+}
+
+const dropOracles = async median => {
   const oracles = [];
-  const message = `finding oracles for ${ilk}’s median…`;
+  const message = `finding current oracles…`;
   for (let i = 0; i < 256; i++) {
     const progress = Math.round(100 * (i+1) / 256);
     process.stdout.write(`${message} ${progress}% - found ${oracles.length} oracles\r`);
@@ -32,15 +36,22 @@ const priceFeed = async ilk => {
   }
   console.log("");
   console.log("dropping oracles…");
-  await cast("drop(address,address[])", [medianAddr, oracles]);
+  await cast("drop(address,address[])", [median.address, oracles]);
+}
+
+const liftSigners = async median => {
   console.log("getting singer addresses…");
   const signers = await ethers.getSigners();
   const signerAddrs = [];
   signers.forEach(signer => signerAddrs.push(signer.address));
   console.log("lifting signers…");
-  await cast("lift(address,address[])", [medianAddr, signerAddrs]);
+  await cast("lift(address,address[])", [median.address, signerAddrs]);
+  return signers;
+}
+
+const poke = async (median, signers, value) => {
   const wad = ethers.BigNumber.from(10).pow(18);
-  const val = ethers.BigNumber.from(3632).mul(wad);
+  const val = ethers.BigNumber.from(value).mul(wad);
   const age = Math.round(Date.now() / 1000);
   const wat = await median.wat();
   const types = ["uint256", "uint256", "bytes32"];
@@ -66,4 +77,13 @@ const priceFeed = async ilk => {
   await median.poke(vals, ages, vs, rs, ss);
 }
 
-priceFeed("ETH-A");
+const priceFeed = async (ilk, value) => {
+  console.log(`setting new price ${value} for ilk ${ilk}…`);
+  const median = await getMedian(ilk);
+  await dropOracles(median);
+  const signers = await liftSigners(median);
+  await poke(median, signers, value);
+  console.log("new price set.");
+}
+
+module.exports = priceFeed;
