@@ -1,17 +1,27 @@
 const hre = require("hardhat");
 const {ethers} = hre;
 const cast = require("./cast");
+const chainlog = require("./chainlog");
 
 
-const priceFeed = async () => {
+const priceFeed = async ilk => {
+  const ilkBytes32 = ethers.utils.formatBytes32String(ilk);
+  const ilkRegistryAbi = ["function pip(bytes32) external view returns (address)"];
+  const ilkRegistryAddr = await chainlog("ILK_REGISTRY");
+  const ilkRegistry = await ethers.getContractAt(ilkRegistryAbi, ilkRegistryAddr);
+  const osmAbi = ["function src() external view returns (address)"];
+  const osmAddr = await ilkRegistry.pip(ilkBytes32);
+  const osm = await ethers.getContractAt(osmAbi, osmAddr)
   const medianAbi = [
     "function slot(uint8) external view returns (address)",
+    "function wat() external view returns (bytes32)",
+    "function bar() external view returns (uint256)",
     "function poke(uint256[] val, uint256[] age, uint8[] v, bytes32[] r, bytes32[] s)",
   ];
-  const medianAddr = "0x64DE91F5A373Cd4c28de3600cB34C7C6cE410C85"; // TODO: obtain from ilk registry
+  const medianAddr = await osm.src();
   const median = await ethers.getContractAt(medianAbi, medianAddr);
   const oracles = [];
-  const message = `finding oracles…`;
+  const message = `finding oracles for ${ilk}’s median…`;
   for (let i = 0; i < 256; i++) {
     const progress = Math.round(100 * (i+1) / 256);
     process.stdout.write(`${message} ${progress}% - found ${oracles.length} oracles\r`);
@@ -32,7 +42,7 @@ const priceFeed = async () => {
   const wad = ethers.BigNumber.from(10).pow(18);
   const val = ethers.BigNumber.from(3632).mul(wad);
   const age = Math.round(Date.now() / 1000);
-  const wat = ethers.utils.formatBytes32String("ETHUSD"); // TODO: make this generalizable
+  const wat = await median.wat();
   const types = ["uint256", "uint256", "bytes32"];
   const data = ethers.utils.solidityPack(types, [val, age, wat]);
   const dataHash = ethers.utils.keccak256(data);
@@ -41,7 +51,8 @@ const priceFeed = async () => {
   const rs = [];
   const ss = [];
   console.log("signing new price feeds…");
-  for (let i = 0; i < 13; i++) { // TODO: get bar from median
+  const bar = (await median.bar()).toNumber();
+  for (let i = 0; i < bar; i++) {
     const signer = signers[i];
     const rawSignature = await signer.signMessage(dataHashBytes);
     const signature = ethers.utils.splitSignature(rawSignature);
@@ -49,10 +60,10 @@ const priceFeed = async () => {
     rs.push(signature.r);
     ss.push(signature.s);
   }
-  const vals = new Array(13).fill(val);
-  const ages = new Array(13).fill(age);
+  const vals = new Array(bar).fill(val);
+  const ages = new Array(bar).fill(age);
   console.log("poking new price into the median…");
   await median.poke(vals, ages, vs, rs, ss);
 }
 
-priceFeed();
+priceFeed("ETH-A");
