@@ -52,7 +52,8 @@ const liftSigners = async median => {
 const poke = async (median, signers, value) => {
   const wad = ethers.BigNumber.from(10).pow(18);
   const val = ethers.BigNumber.from(value).mul(wad);
-  const age = Math.round(Date.now() / 1000);
+  const block = await ethers.provider.getBlock();
+  const age = block.timestamp;
   const wat = await median.wat();
   const types = ["uint256", "uint256", "bytes32"];
   const data = ethers.utils.solidityPack(types, [val, age, wat]);
