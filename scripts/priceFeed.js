@@ -85,6 +85,15 @@ const pokeMedian = async (median, signers, value) => {
   await median.poke(vals, ages, vs, rs, ss);
 }
 
+const pokeOsm = async osm => {
+  await osm.poke();
+  await hre.network.provider.request({
+    method: "evm_increaseTime",
+    params: [3600],
+  });
+  await osm.poke();
+}
+
 const pokeSpotter = async ilk => {
   console.log("poking the spotter…");
   const ilkBytes32 = ethers.utils.formatBytes32String(ilk);
@@ -101,7 +110,7 @@ const priceFeed = async (ilk, value) => {
   await dropOracles(median);
   const signers = await liftSigners(median);
   await pokeMedian(median, signers, value);
-  await osm.poke();
+  await pokeOsm(osm);
   await pokeSpotter(ilk);
   console.log("new price set.");
 }
