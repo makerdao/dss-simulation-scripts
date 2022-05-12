@@ -5,10 +5,12 @@ const hre = require("hardhat");
 const ethers = hre.ethers;
 const cast = require("./cast.js");
 const chainlog = require("./chainlog.js");
+const priceFeed = require("./priceFeed");
 const vaults = require("./vaults.js");
 
 
 const ES = async () => {
+  await priceFeed("ETH-C", 1000);
   const endAbi = [
     "function live() external view returns (uint256)",
     "function tag(bytes32) external view returns (uint256)",
@@ -29,11 +31,15 @@ const ES = async () => {
 
   const DSValueAbi = ["function read() external view returns (bytes32)"];
 
+  const ilks = await ilkReg.list();
+  for (const ilk of ilks) {
+
+  }
+
   if ((await end.live()).toString() === "1") {
     await cast("cage(address)", [endAddr]);
   }
 
-  const ilks = await ilkReg.list();
   for (const ilk of ilks) {
     const prettyIlk = ethers.utils.parseBytes32String(ilk);
     console.log("tagging " + prettyIlk);
