@@ -7,6 +7,7 @@ const cast = require("./cast.js");
 const chainlog = require("./chainlog.js");
 const priceFeed = require("./priceFeed");
 const vaults = require("./vaults.js");
+const auctions = require("./auctions");
 
 
 const ES = async () => {
@@ -15,6 +16,7 @@ const ES = async () => {
     "function tag(bytes32) external view returns (uint256)",
     "function cage(bytes32) external",
     "function skim(bytes32 ilk, address urn) external",
+    "function snip(bytes32 ilk, uint256 id) external",
   ];
   const endAddr = await chainlog("MCD_END");
   const end = await ethers.getContractAt(endAbi, endAddr);
@@ -26,27 +28,41 @@ const ES = async () => {
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
 
   const DSValueAbi = ["function read() external view returns (bytes32)"];
-
-  // await priceFeed("ETH-C", 1500);
-
-  // if ((await end.live()).toString() === "0") {
-  //   console.log("already caged");
-  //   process.exit();
-  // }
-
-  // await cast("cage(address)", [endAddr]);
-
-  // console.log("tagging…");
   const ilk = ethers.utils.formatBytes32String("ETH-C");
-  // await end.cage(ilk);
-  // const tag = await end.tag(ilk);
-  // const prettyTag = ethers.utils.formatUnits(tag, unit=27);
-  // console.log(`tag set at ${prettyTag} ETH per DAI`);
 
-  const underVaults = await vaults("ETH-C");
+  await priceFeed("ETH-C", 1500);
+  let underVaults = await vaults("ETH-C");
+  await auctions.bark("ETH-C", underVaults[0]);
+  await auctions.bark("ETH-C", underVaults[1]);
+  await auctions.bark("ETH-C", underVaults[2]);
+
+  if ((await end.live()).toString() === "0") {
+    console.log("already caged");
+    process.exit();
+  }
+
+  await cast("cage(address)", [endAddr]);
+
+  console.log("tagging…");
+  await end.cage(ilk);
+  const tag = await end.tag(ilk);
+  const prettyTag = ethers.utils.formatUnits(tag, unit=27);
+  console.log(`tag set at ${prettyTag} ETH per DAI`);
+
+  underVaults = await vaults("ETH-C");
+  console.log("skimming undercollateralized vaults…");
   for (underVault of underVaults) {
     end.skim(ilk, underVault);
   }
+  console.log("done.");
+
+  console.log("snipping current auctions…");
+  const list = await auctions.list("ETH-C");
+  console.log(list);
+  for (const id of list) {
+    await end.snip(ilk, id);
+  }
+  console.log(await auctions.list("ETH-C"));
 }
 
 ES();
