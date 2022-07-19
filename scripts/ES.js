@@ -10,7 +10,7 @@ const vaults = require("./vaults.js");
 
 
 const ES = async () => {
-  await priceFeed("ETH-C", 1000);
+  await priceFeed("ETH-C", 0.5);
   const endAbi = [
     "function live() external view returns (uint256)",
     "function tag(bytes32) external view returns (uint256)",

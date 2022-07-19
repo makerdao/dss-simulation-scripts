@@ -30,7 +30,7 @@ const ES = async () => {
   const DSValueAbi = ["function read() external view returns (bytes32)"];
   const ilk = ethers.utils.formatBytes32String("ETH-C");
 
-  await priceFeed("ETH-C", 1500);
+  await priceFeed("ETH-C", 0.5);
   let underVaults = await vaults("ETH-C");
   await auctions.bark("ETH-C", underVaults[0]);
   await auctions.bark("ETH-C", underVaults[1]);

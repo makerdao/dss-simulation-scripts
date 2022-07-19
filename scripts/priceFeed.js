@@ -56,9 +56,23 @@ const liftSigners = async median => {
   return signers;
 }
 
+const getValue = async (median, ratio) => {
+  const slot1 = await hre.network.provider.send(
+    "eth_getStorageAt",
+    [median.address, "0x1"]
+  );
+  const currentHex = slot1.substring(34);
+  const currentWad = parseInt(currentHex, 16);
+  const current = currentWad / 1e18;
+  console.log(`current price is ${current}`);
+  const value = current * ratio;
+  return value;
+}
+
 const pokeMedian = async (median, signers, value) => {
   const wad = ethers.BigNumber.from(10).pow(18);
-  const val = ethers.BigNumber.from(value).mul(wad);
+  const valueInt = parseInt(value);
+  const val = ethers.BigNumber.from(valueInt).mul(wad);
   const block = await ethers.provider.getBlock();
   const age = block.timestamp;
   const wat = await median.wat();
@@ -103,12 +117,13 @@ const pokeSpotter = async ilk => {
   await spotter.poke(ilkBytes32);
 }
 
-const priceFeed = async (ilk, value) => {
-  console.log(`setting new price ${value} for ilk ${ilk}…`);
+const priceFeed = async (ilk, ratio) => {
+  console.log(`setting new price to ${ratio} of its current value for ilk ${ilk}…`);
   const osm = await getOsm(ilk);
   const median = await getMedian(osm);
   await dropOracles(median);
   const signers = await liftSigners(median);
+  const value = await getValue(median, ratio);
   await pokeMedian(median, signers, value);
   await pokeOsm(osm);
   await pokeSpotter(ilk);
