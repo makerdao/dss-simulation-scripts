@@ -64,8 +64,10 @@ const getUnder = async (ilk, urns) => {
 const vaults = async ilk => {
   const token = await login();
   const urns = await getUrns(token, ilk);
-  const under = await getUnder(ilk, urns);
-  return under;
+  return urns;
 }
 
-module.exports = vaults;
+module.exports = {
+  vaults: vaults,
+  getUnder: getUnder,
+}

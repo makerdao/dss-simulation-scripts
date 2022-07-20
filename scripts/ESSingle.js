@@ -6,7 +6,7 @@ const ethers = hre.ethers;
 const cast = require("./cast.js");
 const chainlog = require("./chainlog.js");
 const priceFeed = require("./priceFeed");
-const vaults = require("./vaults.js");
+const {vaults, getUnder} = require("./vaults.js");
 const auctions = require("./auctions");
 
 
@@ -17,6 +17,7 @@ const ES = async () => {
     "function cage(bytes32) external",
     "function skim(bytes32 ilk, address urn) external",
     "function snip(bytes32 ilk, uint256 id) external",
+    "function free(bytes32) external",
   ];
   const endAddr = await chainlog("MCD_END");
   const end = await ethers.getContractAt(endAbi, endAddr);
@@ -31,31 +32,31 @@ const ES = async () => {
   const ilk = ethers.utils.formatBytes32String("ETH-C");
 
   await priceFeed("ETH-C", 0.5);
-  let underVaults = await vaults("ETH-C");
+  const urns = await vaults("ETH-C");
+  let underVaults = await getUnder("ETH-C", urns);
   await auctions.bark("ETH-C", underVaults[0]);
   await auctions.bark("ETH-C", underVaults[1]);
   await auctions.bark("ETH-C", underVaults[2]);
 
-  if ((await end.live()).toString() === "0") {
-    console.log("already caged");
-    process.exit();
-  }
-
+  // 1. `cage()`: freeze system
   await cast("cage(address)", [endAddr]);
 
+  // 2. `cage(ilk)`: set ilk prices
   console.log("tagging…");
   await end.cage(ilk);
   const tag = await end.tag(ilk);
   const prettyTag = ethers.utils.formatUnits(tag, unit=27);
   console.log(`tag set at ${prettyTag} ETH per DAI`);
 
-  underVaults = await vaults("ETH-C");
+  // 3. `skim(ilk, urn)`: close underwater vaults
+  // underVaults = await vaults("ETH-C");
   console.log("skimming undercollateralized vaults…");
   for (underVault of underVaults) {
     end.skim(ilk, underVault);
   }
   console.log("done.");
 
+  // 4b. `snip(ilk, id)`: close ongoing auctions
   console.log("snipping current auctions…");
   const list = await auctions.list("ETH-C");
   console.log(list);
@@ -63,6 +64,15 @@ const ES = async () => {
     await end.snip(ilk, id);
   }
   console.log(await auctions.list("ETH-C"));
+
+  // 5. `free(ilk)`
+  for (const urn of urns) {
+    await hre.network.provider.request({
+      method: 'hardhat_impersonateAccount',
+      params: [urn],
+    });
+    await end.free(ilk);
+  }
 }
 
 ES();
