@@ -67,11 +67,10 @@ const ES = async () => {
 
   // 5. `free(ilk)`
   for (const urn of urns) {
-    await hre.network.provider.request({
-      method: 'hardhat_impersonateAccount',
-      params: [urn],
-    });
-    await end.free(ilk);
+    await hre.network.provider.send("hardhat_setCoinbase", [urn]);
+    await hre.network.provider.send("evm_mine");
+    const owner = await ethers.getSigner(urn);
+    await end.connect(owner).free(ilk);
   }
 }
 
