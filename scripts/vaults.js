@@ -37,7 +37,7 @@ const getUrns = async (token, ilk) => {
   return urns;
 }
 
-const getUnder = async (ilk, urns) => {
+const getUnder = async (ilk, urns, max) => {
   const vatAbi = [
     "function ilks(bytes32) external view returns (uint256,uint256,uint256,uint256,uint256)",
     "function urns(bytes32,address) external view returns (uint256,uint256)"
@@ -55,6 +55,9 @@ const getUnder = async (ilk, urns) => {
     const [ink, art] = await vat.urns(ilk32, urn);
     if (art.mul(rate).gt(ink.mul(spot))) {
       under.push(urn);
+      if (max && under.length == max) {
+        break;
+      }
     }
   }
   console.log(under.length + " vaults found.              ");

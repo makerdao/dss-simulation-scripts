@@ -33,7 +33,7 @@ const ES = async () => {
 
   await priceFeed("ETH-C", 0.5);
   const urns = await vaults("ETH-C");
-  let underVaults = await getUnder("ETH-C", urns);
+  const underVaults = await getUnder("ETH-C", urns, 3);
   await auctions.bark("ETH-C", underVaults[0]);
   await auctions.bark("ETH-C", underVaults[1]);
   await auctions.bark("ETH-C", underVaults[2]);
@@ -48,14 +48,6 @@ const ES = async () => {
   const prettyTag = ethers.utils.formatUnits(tag, unit=27);
   console.log(`tag set at ${prettyTag} ETH per DAI`);
 
-  // 3. `skim(ilk, urn)`: close underwater vaults
-  // underVaults = await vaults("ETH-C");
-  console.log("skimming undercollateralized vaults…");
-  for (underVault of underVaults) {
-    end.skim(ilk, underVault);
-  }
-  console.log("done.");
-
   // 4b. `snip(ilk, id)`: close ongoing auctions
   console.log("snipping current auctions…");
   const list = await auctions.list("ETH-C");
@@ -63,15 +55,34 @@ const ES = async () => {
   for (const id of list) {
     await end.snip(ilk, id);
   }
-  console.log(await auctions.list("ETH-C"));
+  console.log("done.");
 
-  // 5. `free(ilk)`
+  // 3. `skim(ilk, urn)`: close vaults
+  console.log("skimming vaults…");
+  let counter = 0;
+  for (urn of urns) {
+    const percentage = Math.round(100 * counter++ / urns.length);
+    process.stdout.write(`${percentage}%\r`);
+    await end.skim(ilk, urn);
+  }
+  console.log("done.");
+
+  // 5. `free(ilk)`: remove remaining collateral from vaults
+  console.log("freeing vaults…");
+  counter = 0;
   for (const urn of urns) {
+    const percentage = Math.round(100 * counter++ / urns.length);
+    process.stdout.write(`${percentage}%\r`);
     await hre.network.provider.send("hardhat_setCoinbase", [urn]);
     await hre.network.provider.send("evm_mine");
+    await hre.network.provider.request({
+      method: 'hardhat_impersonateAccount',
+      params: [urn],
+    });
     const owner = await ethers.getSigner(urn);
     await end.connect(owner).free(ilk);
   }
+  console.log("done.");
 }
 
 ES();
