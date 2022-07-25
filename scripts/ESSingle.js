@@ -18,6 +18,8 @@ const ES = async () => {
     "function skim(bytes32 ilk, address urn) external",
     "function snip(bytes32 ilk, uint256 id) external",
     "function free(bytes32) external",
+    "function thaw() external",
+    "function wait() external view returns (uint256)",
   ];
   const endAddr = await chainlog("MCD_END");
   const end = await ethers.getContractAt(endAbi, endAddr);
@@ -28,7 +30,19 @@ const ES = async () => {
   const spotterAddr = await chainlog("MCD_SPOT");
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
 
-  const DSValueAbi = ["function read() external view returns (bytes32)"];
+  const vatAbi = [
+    "function dai(address) external view returns (uint256)",
+    "function sin(address) external view returns (uint256)",
+  ];
+  const vatAddr = await chainlog("MCD_VAT");
+  const vat = await ethers.getContractAt(vatAbi, vatAddr);
+
+  const vowAbi = [
+    "function heal(uint256) external",
+  ];
+  const vowAddr = await chainlog("MCD_VOW");
+  const vow = await ethers.getContractAt(vowAbi, vowAddr);
+
   const ilk = ethers.utils.formatBytes32String("ETH-C");
 
   await priceFeed("ETH-C", 0.5);
@@ -67,6 +81,19 @@ const ES = async () => {
   }
   console.log("done.");
 
+  // heal the vow in order to remove all surplus
+  console.log("healing the vow…");
+  const sur = await vat.dai(vowAddr);
+  const sin = await vat.sin(vowAddr);
+  if (sur.gt(sin)) {
+    console.error("skim more vaults in order to heal all surplus");
+    console.error(`surplus: ${ethers.utils.formatUnits(sur, 51)} million`);
+    console.error(`sin:     ${ethers.utils.formatUnits(sin, 51)} million`);
+    process.exit();
+  }
+  await vow.heal(sur);
+  console.log("done.");
+
   // 5. `free(ilk)`: remove remaining collateral from vaults
   console.log("freeing vaults…");
   counter = 0;
@@ -76,13 +103,21 @@ const ES = async () => {
     await hre.network.provider.send("hardhat_setCoinbase", [urn]);
     await hre.network.provider.send("evm_mine");
     await hre.network.provider.request({
-      method: 'hardhat_impersonateAccount',
+      method: "hardhat_impersonateAccount",
       params: [urn],
     });
     const owner = await ethers.getSigner(urn);
     await end.connect(owner).free(ilk);
   }
   console.log("done.");
+
+  // 6. thaw()
+  const wait = await end.wait();
+  await hre.network.provider.request({
+    method: "evm_increaseTime",
+    params: [wait.toNumber()],
+  });
+  await end.thaw();
 }
 
 ES();
