@@ -20,6 +20,7 @@ const ES = async () => {
     "function free(bytes32) external",
     "function thaw() external",
     "function wait() external view returns (uint256)",
+    "function flow(bytes32) external",
   ];
   const endAddr = await chainlog("MCD_END");
   const end = await ethers.getContractAt(endAbi, endAddr);
@@ -111,13 +112,16 @@ const ES = async () => {
   }
   console.log("done.");
 
-  // 6. thaw()
+  // 6. `thaw()`
   const wait = await end.wait();
   await hre.network.provider.request({
     method: "evm_increaseTime",
     params: [wait.toNumber()],
   });
   await end.thaw();
+
+  // 7. `flow(ilk)`
+  await end.flow(ilk);
 }
 
 ES();
