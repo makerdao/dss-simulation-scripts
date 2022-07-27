@@ -21,6 +21,7 @@ const ES = async () => {
     "function thaw() external",
     "function wait() external view returns (uint256)",
     "function flow(bytes32) external",
+    "function pack(uint256) external",
   ];
   const endAddr = await chainlog("MCD_END");
   const end = await ethers.getContractAt(endAbi, endAddr);
@@ -34,6 +35,7 @@ const ES = async () => {
   const vatAbi = [
     "function dai(address) external view returns (uint256)",
     "function sin(address) external view returns (uint256)",
+    "function hope(address) external",
   ];
   const vatAddr = await chainlog("MCD_VAT");
   const vat = await ethers.getContractAt(vatAbi, vatAddr);
@@ -43,6 +45,19 @@ const ES = async () => {
   ];
   const vowAddr = await chainlog("MCD_VOW");
   const vow = await ethers.getContractAt(vowAbi, vowAddr);
+
+  const daiAbi = [
+    "function balanceOf(address) external view returns (uint256)",
+    "function approve(address, uint256) external",
+  ];
+  const daiAddr = await chainlog("MCD_DAI");
+  const dai = await ethers.getContractAt(daiAbi, daiAddr);
+
+  const daiJoinAbi = [
+    "function join(address, uint256) external",
+  ];
+  const daiJoinAddr = await chainlog("MCD_JOIN_DAI");
+  const daiJoin = await ethers.getContractAt(daiJoinAbi, daiJoinAddr);
 
   const ilk = ethers.utils.formatBytes32String("ETH-C");
 
@@ -122,6 +137,40 @@ const ES = async () => {
 
   // 7. `flow(ilk)`
   await end.flow(ilk);
+
+  // 8. `pack(wad)`: dai holders send dai
+  const latestBlock = await ethers.provider.getBlock();
+  const transferTopic = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("Transfer(address,address,uint256)"));
+  const filter = {
+    address: daiAddr,
+    fromBlock: latestBlock.number - 5000,
+    topics: [transferTopic],
+  };
+  const daiTxs = await ethers.provider.getLogs(filter);
+  let holder;
+  const daiToPack = ethers.utils.parseUnits("20");
+  for (let i = daiTxs.length - 1; i >= 0; i--) {
+    const daiTx = daiTxs[i];
+    const amountHex = daiTx.data;
+    const amount = ethers.BigNumber.from(amountHex);
+    if (amount.gte(daiToPack)) {
+      const holderHex32 = daiTx.topics[2];
+      const holderHexBytes = ethers.utils.stripZeros(holderHex32);
+      const holderHex = ethers.utils.hexlify(holderHexBytes);
+      holder = ethers.utils.getAddress(holderHex);
+      const balance = await dai.balanceOf(holder);
+      if (balance.gte(daiToPack)) break;
+    }
+  }
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [holder],
+  });
+  const signer = await ethers.getSigner(holder);
+  await dai.connect(signer).approve(daiJoinAddr, daiToPack);
+  await daiJoin.connect(signer).join(holder, daiToPack);
+  await vat.connect(signer).hope(endAddr);
+  await end.connect(signer).pack(daiToPack);
 }
 
 ES();
