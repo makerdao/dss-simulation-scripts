@@ -149,12 +149,17 @@ const ES = async () => {
   // 8. `pack(wad)`: dai holders send dai
   const latestBlock = await ethers.provider.getBlock();
   const transferTopic = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("Transfer(address,address,uint256)"));
-  const filter = {
-    address: daiAddr,
-    fromBlock: latestBlock.number - 7_000,
-    topics: [transferTopic],
-  };
-  const daiTxs = await ethers.provider.getLogs(filter);
+  let daiTxs = [];
+  let deltaBlocks = 1;
+  while (daiTxs.length < 100) {
+    deltaBlocks *= 2;
+    const filter = {
+      address: daiAddr,
+      fromBlock: latestBlock.number - deltaBlocks,
+      topics: [transferTopic],
+    };
+    const daiTxs = await ethers.provider.getLogs(filter);
+  }
   let holder;
   const daiToPack = ethers.utils.parseUnits("20");
   for (let i = daiTxs.length - 1; i >= 0; i--) {
