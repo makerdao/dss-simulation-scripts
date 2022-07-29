@@ -22,6 +22,7 @@ const ES = async () => {
     "function wait() external view returns (uint256)",
     "function flow(bytes32) external",
     "function pack(uint256) external",
+    "function cash(bytes32 ilk, uint256 wad) external",
   ];
   const endAddr = await chainlog("MCD_END");
   const end = await ethers.getContractAt(endAbi, endAddr);
@@ -36,6 +37,7 @@ const ES = async () => {
     "function dai(address) external view returns (uint256)",
     "function sin(address) external view returns (uint256)",
     "function hope(address) external",
+    "function gem(bytes32, address) external view returns (uint256)",
   ];
   const vatAddr = await chainlog("MCD_VAT");
   const vat = await ethers.getContractAt(vatAbi, vatAddr);
@@ -58,6 +60,12 @@ const ES = async () => {
   ];
   const daiJoinAddr = await chainlog("MCD_JOIN_DAI");
   const daiJoin = await ethers.getContractAt(daiJoinAbi, daiJoinAddr);
+
+  const gemJoinAbi = [
+    "function exit(address, uint256) external",
+  ];
+  const gemJoinAddr = await chainlog("MCD_JOIN_ETH_C");
+  const gemJoin = await ethers.getContractAt(gemJoinAbi, gemJoinAddr);
 
   const ilk = ethers.utils.formatBytes32String("ETH-C");
 
@@ -143,7 +151,7 @@ const ES = async () => {
   const transferTopic = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("Transfer(address,address,uint256)"));
   const filter = {
     address: daiAddr,
-    fromBlock: latestBlock.number - 5000,
+    fromBlock: latestBlock.number - 7_000,
     topics: [transferTopic],
   };
   const daiTxs = await ethers.provider.getLogs(filter);
@@ -162,6 +170,8 @@ const ES = async () => {
       if (balance.gte(daiToPack)) break;
     }
   }
+  await hre.network.provider.send("hardhat_setCoinbase", [holder]);
+  await hre.network.provider.send("evm_mine");
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [holder],
@@ -171,6 +181,11 @@ const ES = async () => {
   await daiJoin.connect(signer).join(holder, daiToPack);
   await vat.connect(signer).hope(endAddr);
   await end.connect(signer).pack(daiToPack);
+
+  // 9. `cash(ilk, wad)`: receive collateral
+  await end.connect(signer).cash(ilk, daiToPack);
+  const gemAmt = await vat.connect(signer).gem(ilk, holder);
+  await gemJoin.connect(signer).exit(holder, gemAmt);
 }
 
 ES();
