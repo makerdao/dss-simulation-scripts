@@ -188,9 +188,11 @@ const ES = async () => {
   await end.connect(signer).pack(daiToPack);
 
   // 9. `cash(ilk, wad)`: receive collateral
+  const gemBefore = await vat.connect(signer).gem(ilk, holder);
   await end.connect(signer).cash(ilk, daiToPack);
-  const gemAmt = await vat.connect(signer).gem(ilk, holder);
-  await gemJoin.connect(signer).exit(holder, gemAmt);
+  const gemAfter = await vat.connect(signer).gem(ilk, holder);
+  assert.ok(gemAfter.gt(gemBefore));
+  await gemJoin.connect(signer).exit(holder, gemAfter);
 }
 
 ES();
