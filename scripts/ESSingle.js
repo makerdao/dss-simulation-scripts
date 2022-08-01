@@ -10,7 +10,7 @@ const vaults = require("../utils/vaults");
 const auctions = require("../utils/auctions");
 
 
-const ES = async () => {
+const getContracts = async () => {
   const endAbi = [
     "function live() external view returns (uint256)",
     "function tag(bytes32) external view returns (uint256)",
@@ -24,60 +24,62 @@ const ES = async () => {
     "function pack(uint256) external",
     "function cash(bytes32 ilk, uint256 wad) external",
   ];
-  const endAddr = await chainlog.get("MCD_END");
-  const end = await ethers.getContractAt(endAbi, endAddr);
-
   const spotterAbi = [
     "function ilks(bytes32) external view returns (address,uint256)"
   ];
-  const spotterAddr = await chainlog.get("MCD_SPOT");
-  const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
-
   const vatAbi = [
     "function dai(address) external view returns (uint256)",
     "function sin(address) external view returns (uint256)",
     "function hope(address) external",
     "function gem(bytes32, address) external view returns (uint256)",
   ];
-  const vatAddr = await chainlog.get("MCD_VAT");
-  const vat = await ethers.getContractAt(vatAbi, vatAddr);
-
   const vowAbi = [
     "function heal(uint256) external",
   ];
-  const vowAddr = await chainlog.get("MCD_VOW");
-  const vow = await ethers.getContractAt(vowAbi, vowAddr);
-
   const daiAbi = [
     "function balanceOf(address) external view returns (uint256)",
     "function approve(address, uint256) external",
   ];
-  const daiAddr = await chainlog.get("MCD_DAI");
-  const dai = await ethers.getContractAt(daiAbi, daiAddr);
-
   const daiJoinAbi = [
     "function join(address, uint256) external",
   ];
-  const daiJoinAddr = await chainlog.get("MCD_JOIN_DAI");
-  const daiJoin = await ethers.getContractAt(daiJoinAbi, daiJoinAddr);
-
   const gemJoinAbi = [
     "function exit(address, uint256) external",
   ];
+  const endAddr = await chainlog.get("MCD_END");
+  const spotterAddr = await chainlog.get("MCD_SPOT");
+  const vatAddr = await chainlog.get("MCD_VAT");
+  const vowAddr = await chainlog.get("MCD_VOW");
+  const daiAddr = await chainlog.get("MCD_DAI");
+  const daiJoinAddr = await chainlog.get("MCD_JOIN_DAI");
   const gemJoinAddr = await chainlog.get("MCD_JOIN_ETH_C");
+
+  const end = await ethers.getContractAt(endAbi, endAddr);
+  const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
+  const vat = await ethers.getContractAt(vatAbi, vatAddr);
+  const vow = await ethers.getContractAt(vowAbi, vowAddr);
+  const dai = await ethers.getContractAt(daiAbi, daiAddr);
+  const daiJoin = await ethers.getContractAt(daiJoinAbi, daiJoinAddr);
   const gemJoin = await ethers.getContractAt(gemJoinAbi, gemJoinAddr);
+
+  return {end, spotter, vat, vow, dai, daiJoin, gemJoin};
+}
+
+const ES = async () => {
+
+  const {end, spotter, vat, vow, dai, daiJoin, gemJoin} = await getContracts();
 
   const ilk = ethers.utils.formatBytes32String("ETH-C");
 
   await oracles.setPrice("ETH-C", 0.5);
   const urns = await vaults.list("ETH-C");
   const underVaults = await vaults.listUnder("ETH-C", urns, 3);
-  await auctions.bark("ETH-C", underVaults[0]);
-  await auctions.bark("ETH-C", underVaults[1]);
-  await auctions.bark("ETH-C", underVaults[2]);
+  for (let i = 0; i < underVaults.length; i++) {
+    await auctions.bark("ETH-C", underVaults[i]);
+  }
 
   // 1. `cage()`: freeze system
-  await governance.spell("cage(address)", [endAddr]);
+  await governance.spell("cage(address)", [end.address]);
 
   // 2. `cage(ilk)`: set ilk prices
   console.log("tagging…");
@@ -107,8 +109,8 @@ const ES = async () => {
 
   // heal the vow in order to remove all surplus
   console.log("healing the vow…");
-  const sur = await vat.dai(vowAddr);
-  const sin = await vat.sin(vowAddr);
+  const sur = await vat.dai(vow.address);
+  const sin = await vat.sin(vow.address);
   if (sur.gt(sin)) {
     console.error("skim more vaults in order to heal all surplus");
     console.error(`surplus: ${ethers.utils.formatUnits(sur, 51)} million`);
@@ -154,7 +156,7 @@ const ES = async () => {
   while (daiTxs.length < 100) {
     deltaBlocks *= 2;
     const filter = {
-      address: daiAddr,
+      address: dai.address,
       fromBlock: latestBlock.number - deltaBlocks,
       topics: [transferTopic],
     };
@@ -182,9 +184,9 @@ const ES = async () => {
     params: [holder],
   });
   const signer = await ethers.getSigner(holder);
-  await dai.connect(signer).approve(daiJoinAddr, daiToPack);
+  await dai.connect(signer).approve(daiJoin.address, daiToPack);
   await daiJoin.connect(signer).join(holder, daiToPack);
-  await vat.connect(signer).hope(endAddr);
+  await vat.connect(signer).hope(end.address);
   await end.connect(signer).pack(daiToPack);
 
   // 9. `cash(ilk, wad)`: receive collateral
