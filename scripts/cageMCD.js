@@ -3,8 +3,8 @@
 const assert = require("assert");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-const cast = require("./cast.js");
-const chainlog = require("./chainlog.js");
+const cast = require("./cast");
+const chainlog = require("./chainlog");
 
 
 // test cageMCD

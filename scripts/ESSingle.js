@@ -3,10 +3,10 @@
 const assert = require("assert");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-const cast = require("./cast.js");
-const chainlog = require("./chainlog.js");
+const cast = require("./cast");
+const chainlog = require("./chainlog");
 const priceFeed = require("./priceFeed");
-const {vaults, getUnder} = require("./vaults.js");
+const vaults = require("./vaults");
 const auctions = require("./auctions");
 
 
@@ -70,8 +70,8 @@ const ES = async () => {
   const ilk = ethers.utils.formatBytes32String("ETH-C");
 
   await priceFeed("ETH-C", 0.5);
-  const urns = await vaults("ETH-C");
-  const underVaults = await getUnder("ETH-C", urns, 3);
+  const urns = await vaults.vaults("ETH-C");
+  const underVaults = await vaults.getUnder("ETH-C", urns, 3);
   await auctions.bark("ETH-C", underVaults[0]);
   await auctions.bark("ETH-C", underVaults[1]);
   await auctions.bark("ETH-C", underVaults[2]);

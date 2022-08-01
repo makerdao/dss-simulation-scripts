@@ -4,7 +4,7 @@ const assert = require("assert");
 const fs = require("fs");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-const chainlog = require("./chainlog.js");
+const chainlog = require("./chainlog");
 
 const args = process.argv.slice(2);
 

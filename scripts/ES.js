@@ -3,10 +3,10 @@
 const assert = require("assert");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-const cast = require("./cast.js");
-const chainlog = require("./chainlog.js");
+const cast = require("./cast");
+const chainlog = require("./chainlog");
 const priceFeed = require("./priceFeed");
-const vaults = require("./vaults.js");
+const vaults = require("./vaults");
 
 
 const ES = async () => {

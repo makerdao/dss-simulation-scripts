@@ -1,6 +1,6 @@
 const hre = require("hardhat");
 const ethers = hre.ethers;
-const chainlog = require("./chainlog.js");
+const chainlog = require("./chainlog");
 
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 

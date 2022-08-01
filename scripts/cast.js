@@ -2,7 +2,7 @@ const fs = require("fs");
 const hre = require("hardhat");
 const ethers = hre.ethers;
 const provider = hre.network.provider;
-const chainlog = require("./chainlog.js");
+const chainlog = require("./chainlog");
 
 
 const getApprovals = async () => {
