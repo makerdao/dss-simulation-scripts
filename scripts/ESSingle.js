@@ -24,13 +24,13 @@ const ES = async () => {
     "function pack(uint256) external",
     "function cash(bytes32 ilk, uint256 wad) external",
   ];
-  const endAddr = await chainlog("MCD_END");
+  const endAddr = await chainlog.get("MCD_END");
   const end = await ethers.getContractAt(endAbi, endAddr);
 
   const spotterAbi = [
     "function ilks(bytes32) external view returns (address,uint256)"
   ];
-  const spotterAddr = await chainlog("MCD_SPOT");
+  const spotterAddr = await chainlog.get("MCD_SPOT");
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
 
   const vatAbi = [
@@ -39,45 +39,45 @@ const ES = async () => {
     "function hope(address) external",
     "function gem(bytes32, address) external view returns (uint256)",
   ];
-  const vatAddr = await chainlog("MCD_VAT");
+  const vatAddr = await chainlog.get("MCD_VAT");
   const vat = await ethers.getContractAt(vatAbi, vatAddr);
 
   const vowAbi = [
     "function heal(uint256) external",
   ];
-  const vowAddr = await chainlog("MCD_VOW");
+  const vowAddr = await chainlog.get("MCD_VOW");
   const vow = await ethers.getContractAt(vowAbi, vowAddr);
 
   const daiAbi = [
     "function balanceOf(address) external view returns (uint256)",
     "function approve(address, uint256) external",
   ];
-  const daiAddr = await chainlog("MCD_DAI");
+  const daiAddr = await chainlog.get("MCD_DAI");
   const dai = await ethers.getContractAt(daiAbi, daiAddr);
 
   const daiJoinAbi = [
     "function join(address, uint256) external",
   ];
-  const daiJoinAddr = await chainlog("MCD_JOIN_DAI");
+  const daiJoinAddr = await chainlog.get("MCD_JOIN_DAI");
   const daiJoin = await ethers.getContractAt(daiJoinAbi, daiJoinAddr);
 
   const gemJoinAbi = [
     "function exit(address, uint256) external",
   ];
-  const gemJoinAddr = await chainlog("MCD_JOIN_ETH_C");
+  const gemJoinAddr = await chainlog.get("MCD_JOIN_ETH_C");
   const gemJoin = await ethers.getContractAt(gemJoinAbi, gemJoinAddr);
 
   const ilk = ethers.utils.formatBytes32String("ETH-C");
 
-  await priceFeed("ETH-C", 0.5);
-  const urns = await vaults.vaults("ETH-C");
-  const underVaults = await vaults.getUnder("ETH-C", urns, 3);
+  await priceFeed.setPrice("ETH-C", 0.5);
+  const urns = await vaults.list("ETH-C");
+  const underVaults = await vaults.listUnder("ETH-C", urns, 3);
   await auctions.bark("ETH-C", underVaults[0]);
   await auctions.bark("ETH-C", underVaults[1]);
   await auctions.bark("ETH-C", underVaults[2]);
 
   // 1. `cage()`: freeze system
-  await cast("cage(address)", [endAddr]);
+  await cast.spell("cage(address)", [endAddr]);
 
   // 2. `cage(ilk)`: set ilk prices
   console.log("tagging…");

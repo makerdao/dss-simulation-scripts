@@ -42,7 +42,7 @@ const getUnder = async (ilk, urns, max) => {
     "function ilks(bytes32) external view returns (uint256,uint256,uint256,uint256,uint256)",
     "function urns(bytes32,address) external view returns (uint256,uint256)"
   ];
-  const vatAddr = await chainlog("MCD_VAT");
+  const vatAddr = await chainlog.get("MCD_VAT");
   const vat = await ethers.getContractAt(vatAbi, vatAddr);
   const ilk32 = ethers.utils.formatBytes32String(ilk);
   const [, rate, spot] = await vat.ilks(ilk32);
@@ -71,6 +71,6 @@ const vaults = async ilk => {
 }
 
 module.exports = {
-  vaults: vaults,
-  getUnder: getUnder,
+  list: vaults,
+  listUnder: getUnder,
 }

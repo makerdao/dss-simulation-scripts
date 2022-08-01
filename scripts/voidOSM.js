@@ -14,13 +14,13 @@ async function main() {
     "function src() external view returns (address)",
     "function poke() external"
   ];
-  const pipEthAddr = await chainlog("PIP_ETH");
+  const pipEthAddr = await chainlog.get("PIP_ETH");
   const osm = await ethers.getContractAt(osmAbi, pipEthAddr, signer);
 
   // change the PIP_ETH src to the USDC DSValue which is hardcoded to 1
   // causing the next poke() to pull in a > 50% price drop.
-  const pipUsdcAddr = await chainlog("PIP_USDC");
-  await cast("change(address,address)", [pipEthAddr, pipUsdcAddr]);
+  const pipUsdcAddr = await chainlog.get("PIP_USDC");
+  await cast.spell("change(address,address)", [pipEthAddr, pipUsdcAddr]);
   assert.equal(await osm.src(), pipUsdcAddr);
 
   // time warp

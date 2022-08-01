@@ -35,14 +35,14 @@ async function setOSMPrice(ilk, osm, price) {
     "function poke(bytes32) external",
     "function ilks(bytes32) external view returns (address pip, uint256 mat)"
   ];
-  const spotterAddr = chainlog("MCD_SPOT");
+  const spotterAddr = chainlog.get("MCD_SPOT");
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr, signer);
 
   // now we poke() to pull in the new price
   await spotter.poke(ilk);
 
   const vatAbi = ["function ilks(bytes32) external view returns (uint256 art, uint256 rate, uint256 spot, uint256 line, uint256 dust)"];
-  const vatAddr = await chainlog("MCD_VAT");
+  const vatAddr = await chainlog.get("MCD_VAT");
   const vat = await ethers.getContractAt(vatAbi, vatAddr);
   const spot = (await vat.ilks(ilk)).spot;
   const mat = (await spotter.ilks(ilk)).mat;

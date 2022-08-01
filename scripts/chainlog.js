@@ -12,4 +12,6 @@ const chainlog = async key => {
   return result;
 }
 
-module.exports = chainlog;
+module.exports = {
+  get: chainlog,
+}

@@ -7,7 +7,7 @@ const chainlog = require("./chainlog");
 const getOsm = async ilk => {
   const ilkBytes32 = ethers.utils.formatBytes32String(ilk);
   const ilkRegistryAbi = ["function pip(bytes32) external view returns (address)"];
-  const ilkRegistryAddr = await chainlog("ILK_REGISTRY");
+  const ilkRegistryAddr = await chainlog.get("ILK_REGISTRY");
   const ilkRegistry = await ethers.getContractAt(ilkRegistryAbi, ilkRegistryAddr);
   const osmAbi = [
     "function src() external view returns (address)",
@@ -43,7 +43,7 @@ const dropOracles = async median => {
   }
   console.log("");
   console.log("dropping oracles…");
-  await cast("drop(address,address[])", [median.address, oracles]);
+  await cast.spell("drop(address,address[])", [median.address, oracles]);
 }
 
 const liftSigners = async median => {
@@ -52,7 +52,7 @@ const liftSigners = async median => {
   const signerAddrs = [];
   signers.forEach(signer => signerAddrs.push(signer.address));
   console.log("lifting signers…");
-  await cast("lift(address,address[])", [median.address, signerAddrs]);
+  await cast.spell("lift(address,address[])", [median.address, signerAddrs]);
   return signers;
 }
 
@@ -112,7 +112,7 @@ const pokeSpotter = async ilk => {
   console.log("poking the spotter…");
   const ilkBytes32 = ethers.utils.formatBytes32String(ilk);
   const spotterAbi = ["function poke(bytes32) external"];
-  const spotterAddr = await chainlog("MCD_SPOT");
+  const spotterAddr = await chainlog.get("MCD_SPOT");
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
   await spotter.poke(ilkBytes32);
 }
@@ -130,4 +130,6 @@ const priceFeed = async (ilk, ratio) => {
   console.log("new price set.");
 }
 
-module.exports = priceFeed;
+module.exports = {
+  setPrice: priceFeed,
+}

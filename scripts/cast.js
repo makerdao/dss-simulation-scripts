@@ -10,7 +10,7 @@ const getApprovals = async () => {
     "function hat() external view returns (address)",
     "function approvals(address) external view returns (uint256)"
   ];
-  const chiefAddr = await chainlog("MCD_ADM");
+  const chiefAddr = await chainlog.get("MCD_ADM");
   const chief = await ethers.getContractAt(chiefAbi, chiefAddr);
   const hat = await chief.hat();
   const approvals = await chief.approvals(hat);
@@ -21,7 +21,7 @@ const getMkr = async amount => {
   const govAbi = [
     "function balanceOf(address) external view returns (uint256)"
   ];
-  const govAddr = await chainlog("MCD_GOV");
+  const govAddr = await chainlog.get("MCD_GOV");
   const [signer] = await ethers.getSigners();
   const addr32 = ethers.utils.hexZeroPad(signer.address, 32);
   const slot32 = ethers.utils.hexZeroPad("0x01", 32);
@@ -46,8 +46,8 @@ const vote = async amountMkr => {
     "function vote(bytes32) external",
     "function lift(address) external"
   ];
-  const govAddr = await chainlog("MCD_GOV");
-  const chiefAddr = await chainlog("MCD_ADM");
+  const govAddr = await chainlog.get("MCD_GOV");
+  const chiefAddr = await chainlog.get("MCD_ADM");
   const [signer] = await ethers.getSigners();
   const gov = await ethers.getContractAt(govAbi, govAddr, signer);
   const chief = await ethers.getContractAt(chiefAbi, chiefAddr, signer);
@@ -93,7 +93,7 @@ const exec = async (actionAddr, calldata) => {
     "function plot(address usr, bytes32 tag, bytes memory fax, uint eta) external",
     "function exec(address usr, bytes32 tag, bytes memory fax, uint eta) external"
   ];
-  const pauseAddr = await chainlog("MCD_PAUSE");
+  const pauseAddr = await chainlog.get("MCD_PAUSE");
   const [signer] = await ethers.getSigners();
   const pause = await ethers.getContractAt(pauseAbi, pauseAddr, signer);
   const actionCode = await provider.request({
@@ -126,4 +126,6 @@ const cast = async (sig, params) => {
   console.log("done.");
 }
 
-module.exports = cast;
+module.exports = {
+  spell: cast,
+}

@@ -10,23 +10,23 @@ const vaults = require("./vaults");
 
 
 const ES = async () => {
-  await priceFeed("ETH-C", 0.5);
+  await priceFeed.setPrice("ETH-C", 0.5);
   const endAbi = [
     "function live() external view returns (uint256)",
     "function tag(bytes32) external view returns (uint256)",
     "function cage(bytes32) external"
   ];
-  const endAddr = await chainlog("MCD_END");
+  const endAddr = await chainlog.get("MCD_END");
   const end = await ethers.getContractAt(endAbi, endAddr);
 
   const ilkRegAbi = ["function list() external view returns (bytes32[])"];
-  const ilkRegAddr = await chainlog("ILK_REGISTRY");
+  const ilkRegAddr = await chainlog.get("ILK_REGISTRY");
   const ilkReg = await ethers.getContractAt(ilkRegAbi, ilkRegAddr);
 
   const spotterAbi = [
     "function ilks(bytes32) external view returns (address,uint256)"
   ];
-  const spotterAddr = await chainlog("MCD_SPOT");
+  const spotterAddr = await chainlog.get("MCD_SPOT");
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
 
   const DSValueAbi = ["function read() external view returns (bytes32)"];
@@ -37,7 +37,7 @@ const ES = async () => {
   }
 
   if ((await end.live()).toString() === "1") {
-    await cast("cage(address)", [endAddr]);
+    await cast.spell("cage(address)", [endAddr]);
   }
 
   for (const ilk of ilks) {
