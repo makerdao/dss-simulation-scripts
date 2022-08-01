@@ -65,18 +65,21 @@ const getContracts = async () => {
   return {end, spotter, vat, vow, dai, daiJoin, gemJoin};
 }
 
-const ES = async () => {
-
-  const {end, spotter, vat, vow, dai, daiJoin, gemJoin} = await getContracts();
-
-  const ilk = ethers.utils.formatBytes32String("ETH-C");
-
+const triggerAuctions = async (urns, amount) => {
   await oracles.setPrice("ETH-C", 0.5);
-  const urns = await vaults.list("ETH-C");
-  const underVaults = await vaults.listUnder("ETH-C", urns, 3);
+  const underVaults = await vaults.listUnder("ETH-C", urns, amount);
   for (let i = 0; i < underVaults.length; i++) {
     await auctions.bark("ETH-C", underVaults[i]);
   }
+}
+
+const ES = async () => {
+
+  const {end, spotter, vat, vow, dai, daiJoin, gemJoin} = await getContracts();
+  const ilk = ethers.utils.formatBytes32String("ETH-C");
+  const urns = await vaults.list("ETH-C");
+
+  await triggerAuctions(urns, 3);
 
   // 1. `cage()`: freeze system
   await governance.spell("cage(address)", [end.address]);
