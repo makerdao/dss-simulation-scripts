@@ -3,14 +3,14 @@
 const assert = require("assert");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-const cast = require("./cast");
-const chainlog = require("./chainlog");
-const priceFeed = require("./priceFeed");
-const vaults = require("./vaults");
+const governance = require("../utils/governance");
+const chainlog = require("../utils/chainlog");
+const oracles = require("../utils/oracles");
+const vaults = require("../utils/vaults");
 
 
 const ES = async () => {
-  await priceFeed.setPrice("ETH-C", 0.5);
+  await oracles.setPrice("ETH-C", 0.5);
   const endAbi = [
     "function live() external view returns (uint256)",
     "function tag(bytes32) external view returns (uint256)",
@@ -37,7 +37,7 @@ const ES = async () => {
   }
 
   if ((await end.live()).toString() === "1") {
-    await cast.spell("cage(address)", [endAddr]);
+    await governance.spell("cage(address)", [endAddr]);
   }
 
   for (const ilk of ilks) {

@@ -1,6 +1,6 @@
 const hre = require("hardhat");
 const {ethers} = hre;
-const cast = require("./cast");
+const governance = require("./governance");
 const chainlog = require("./chainlog");
 
 
@@ -43,7 +43,7 @@ const dropOracles = async median => {
   }
   console.log("");
   console.log("dropping oracles…");
-  await cast.spell("drop(address,address[])", [median.address, oracles]);
+  await governance.spell("drop(address,address[])", [median.address, oracles]);
 }
 
 const liftSigners = async median => {
@@ -52,7 +52,7 @@ const liftSigners = async median => {
   const signerAddrs = [];
   signers.forEach(signer => signerAddrs.push(signer.address));
   console.log("lifting signers…");
-  await cast.spell("lift(address,address[])", [median.address, signerAddrs]);
+  await governance.spell("lift(address,address[])", [median.address, signerAddrs]);
   return signers;
 }
 

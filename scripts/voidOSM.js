@@ -3,8 +3,8 @@
 const assert = require("assert");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-const cast = require("./cast");
-const chainlog = require("./chainlog");
+const governance = require("../utils/governance");
+const chainlog = require("../utils/chainlog");
 
 
 // test voidOSM
@@ -20,7 +20,7 @@ async function main() {
   // change the PIP_ETH src to the USDC DSValue which is hardcoded to 1
   // causing the next poke() to pull in a > 50% price drop.
   const pipUsdcAddr = await chainlog.get("PIP_USDC");
-  await cast.spell("change(address,address)", [pipEthAddr, pipUsdcAddr]);
+  await governance.spell("change(address,address)", [pipEthAddr, pipUsdcAddr]);
   assert.equal(await osm.src(), pipUsdcAddr);
 
   // time warp

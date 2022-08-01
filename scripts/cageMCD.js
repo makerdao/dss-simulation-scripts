@@ -3,8 +3,8 @@
 const assert = require("assert");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-const cast = require("./cast");
-const chainlog = require("./chainlog");
+const governance = require("../utils/governance");
+const chainlog = require("../utils/chainlog");
 
 
 // test cageMCD
@@ -16,7 +16,7 @@ async function main() {
 
   // This will cage MCD
   assert.equal(await vat.live(), 1);
-  await cast.spell("cage(address)", [endAddr]);
+  await governance.spell("cage(address)", [endAddr]);
   assert.equal(await vat.live(), 0);
 }
 

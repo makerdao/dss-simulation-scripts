@@ -3,11 +3,11 @@
 const assert = require("assert");
 const hre = require("hardhat");
 const ethers = hre.ethers;
-const cast = require("./cast");
-const chainlog = require("./chainlog");
-const priceFeed = require("./priceFeed");
-const vaults = require("./vaults");
-const auctions = require("./auctions");
+const governance = require("../utils/governance");
+const chainlog = require("../utils/chainlog");
+const oracles = require("../utils/oracles");
+const vaults = require("../utils/vaults");
+const auctions = require("../utils/auctions");
 
 
 const ES = async () => {
@@ -69,7 +69,7 @@ const ES = async () => {
 
   const ilk = ethers.utils.formatBytes32String("ETH-C");
 
-  await priceFeed.setPrice("ETH-C", 0.5);
+  await oracles.setPrice("ETH-C", 0.5);
   const urns = await vaults.list("ETH-C");
   const underVaults = await vaults.listUnder("ETH-C", urns, 3);
   await auctions.bark("ETH-C", underVaults[0]);
@@ -77,7 +77,7 @@ const ES = async () => {
   await auctions.bark("ETH-C", underVaults[2]);
 
   // 1. `cage()`: freeze system
-  await cast.spell("cage(address)", [endAddr]);
+  await governance.spell("cage(address)", [endAddr]);
 
   // 2. `cage(ilk)`: set ilk prices
   console.log("tagging…");
