@@ -43,16 +43,12 @@ const getContracts = async () => {
   const daiJoinAbi = [
     "function join(address, uint256) external",
   ];
-  const gemJoinAbi = [
-    "function exit(address, uint256) external",
-  ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
   const vatAddr = await chainlog.get("MCD_VAT");
   const vowAddr = await chainlog.get("MCD_VOW");
   const daiAddr = await chainlog.get("MCD_DAI");
   const daiJoinAddr = await chainlog.get("MCD_JOIN_DAI");
-  const gemJoinAddr = await chainlog.get("MCD_JOIN_ETH_C");
 
   const end = await ethers.getContractAt(endAbi, endAddr);
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
@@ -60,9 +56,19 @@ const getContracts = async () => {
   const vow = await ethers.getContractAt(vowAbi, vowAddr);
   const dai = await ethers.getContractAt(daiAbi, daiAddr);
   const daiJoin = await ethers.getContractAt(daiJoinAbi, daiJoinAddr);
-  const gemJoin = await ethers.getContractAt(gemJoinAbi, gemJoinAddr);
 
-  return {end, spotter, vat, vow, dai, daiJoin, gemJoin};
+  return {end, spotter, vat, vow, dai, daiJoin};
+}
+
+const getGemJoin = async ilkName => {
+  const gemJoinAbi = [
+    "function exit(address, uint256) external",
+  ];
+  const underscoreName = ilkName.replace("-", "_");
+  const key = `MCD_JOIN_${underscoreName}`;
+  const gemJoinAddr = await chainlog.get(key);
+  const gemJoin = await ethers.getContractAt(gemJoinAbi, gemJoinAddr);
+  return gemJoin;
 }
 
 const triggerAuctions = async (ilkName, urns, amount) => {
@@ -217,8 +223,9 @@ const cash = async (ilk, vat, end, gemJoin, daiJoin, dai, holder, daiToPack) => 
 
 const ES = async () => {
 
-  const {end, spotter, vat, vow, dai, daiJoin, gemJoin} = await getContracts();
-  const ilkName = "ETH-C";
+  const {end, spotter, vat, vow, dai, daiJoin} = await getContracts();
+  let ilkName = "ETH-C";
+  let gemJoin = await getGemJoin(ilkName);
   const ilk = ethers.utils.formatBytes32String(ilkName);
   const urns = await vaults.list(ilkName);
   const daiToPack = ethers.utils.parseUnits("20");
