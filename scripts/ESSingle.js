@@ -65,11 +65,11 @@ const getContracts = async () => {
   return {end, spotter, vat, vow, dai, daiJoin, gemJoin};
 }
 
-const triggerAuctions = async (urns, amount) => {
-  await oracles.setPrice("ETH-C", 0.5);
-  const underVaults = await vaults.listUnder("ETH-C", urns, amount);
+const triggerAuctions = async (ilkName, urns, amount) => {
+  await oracles.setPrice(ilkName, 0.5);
+  const underVaults = await vaults.listUnder(ilkName, urns, amount);
   for (let i = 0; i < underVaults.length; i++) {
-    await auctions.bark("ETH-C", underVaults[i]);
+    await auctions.bark(ilkName, underVaults[i]);
   }
 }
 
@@ -79,18 +79,20 @@ const cage = async end => {
 }
 
 // 2. `cage(ilk)`: set ilk prices
-const tag = async (ilk, end) => {
+const tag = async (ilkName, end) => {
   console.log("tagging…");
+  const ilk = ethers.utils.formatBytes32String(ilkName);
   await end.cage(ilk);
   const tag = await end.tag(ilk);
   const prettyTag = ethers.utils.formatUnits(tag, unit=27);
-  console.log(`tag set at ${prettyTag} ETH per DAI`);
+  console.log(`tag set at ${prettyTag} ${ilkName} per DAI`);
 }
 
 // 4b. `snip(ilk, id)`: close ongoing auctions
-const snip = async (ilk, end) => {
+const snip = async (ilkName, end) => {
   console.log("snipping current auctions…");
-  const list = await auctions.list("ETH-C");
+  const ilk = ethers.utils.formatBytes32String(ilkName);
+  const list = await auctions.list(ilkName);
   console.log(list);
   for (const id of list) {
     await end.snip(ilk, id);
@@ -216,17 +218,18 @@ const cash = async (ilk, vat, end, gemJoin, daiJoin, dai, holder, daiToPack) => 
 const ES = async () => {
 
   const {end, spotter, vat, vow, dai, daiJoin, gemJoin} = await getContracts();
-  const ilk = ethers.utils.formatBytes32String("ETH-C");
-  const urns = await vaults.list("ETH-C");
+  const ilkName = "ETH-C";
+  const ilk = ethers.utils.formatBytes32String(ilkName);
+  const urns = await vaults.list(ilkName);
   const daiToPack = ethers.utils.parseUnits("20");
 
-  // await triggerAuctions(urns, 3);
+  await triggerAuctions(ilkName, urns, 3);
   await cage(end);
-  await tag(ilk, end);
-  // await snip(ilk, end);
+  await tag(ilkName, end);
+  await snip(ilkName, end);
   await skim(ilk, end, urns);
   await heal(vat, vow);
-  // await free(ilk, end, urns);
+  await free(ilk, end, urns.splice(0, 3));
   await thaw(end);
   await flow(ilk, end);
   const holder = await pack(vat, end, daiJoin, dai, daiToPack);
