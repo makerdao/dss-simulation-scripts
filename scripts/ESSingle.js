@@ -73,25 +73,22 @@ const triggerAuctions = async (urns, amount) => {
   }
 }
 
-const ES = async () => {
-
-  const {end, spotter, vat, vow, dai, daiJoin, gemJoin} = await getContracts();
-  const ilk = ethers.utils.formatBytes32String("ETH-C");
-  const urns = await vaults.list("ETH-C");
-
-  await triggerAuctions(urns, 3);
-
-  // 1. `cage()`: freeze system
+// 1. `cage()`: freeze system
+const cage = async end => {
   await governance.spell("cage(address)", [end.address]);
+}
 
-  // 2. `cage(ilk)`: set ilk prices
+// 2. `cage(ilk)`: set ilk prices
+const tag = async (ilk, end) => {
   console.log("tagging…");
   await end.cage(ilk);
   const tag = await end.tag(ilk);
   const prettyTag = ethers.utils.formatUnits(tag, unit=27);
   console.log(`tag set at ${prettyTag} ETH per DAI`);
+}
 
-  // 4b. `snip(ilk, id)`: close ongoing auctions
+// 4b. `snip(ilk, id)`: close ongoing auctions
+const snip = async (ilk, end) => {
   console.log("snipping current auctions…");
   const list = await auctions.list("ETH-C");
   console.log(list);
@@ -99,8 +96,10 @@ const ES = async () => {
     await end.snip(ilk, id);
   }
   console.log("done.");
+}
 
-  // 3. `skim(ilk, urn)`: close vaults
+// 3. `skim(ilk, urn)`: close vaults
+const skim = async (end, urns) => {
   console.log("skimming vaults…");
   let counter = 0;
   for (urn of urns) {
@@ -109,8 +108,10 @@ const ES = async () => {
     await end.skim(ilk, urn);
   }
   console.log("done.");
+}
 
-  // heal the vow in order to remove all surplus
+// heal the vow in order to remove all surplus
+const heal = async (vat, vow) => {
   console.log("healing the vow…");
   const sur = await vat.dai(vow.address);
   const sin = await vat.sin(vow.address);
@@ -122,8 +123,10 @@ const ES = async () => {
   }
   await vow.heal(sur);
   console.log("done.");
+}
 
-  // 5. `free(ilk)`: remove remaining collateral from vaults
+// 5. `free(ilk)`: remove remaining collateral from vaults
+const free = async (ilk, end, urns) => {
   console.log("freeing vaults…");
   counter = 0;
   for (const urn of urns) {
@@ -139,19 +142,25 @@ const ES = async () => {
     await end.connect(owner).free(ilk);
   }
   console.log("done.");
+}
 
-  // 6. `thaw()`
+// 6. `thaw()`
+const thaw = async end => {
   const wait = await end.wait();
   await hre.network.provider.request({
-    method: "evm_increaseTime",
+    method: "evm_increaseTime",
     params: [wait.toNumber()],
   });
   await end.thaw();
+}
 
-  // 7. `flow(ilk)`
+// 7. `flow(ilk)`
+const flow = async (ilk, end) => {
   await end.flow(ilk);
+}
 
-  // 8. `pack(wad)`: dai holders send dai
+// 8. `pack(wad)`: dai holders send dai
+const pack = async (vat, end, daiJoin, dai) => {
   const latestBlock = await ethers.provider.getBlock();
   const transferTopic = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("Transfer(address,address,uint256)"));
   let daiTxs = [];
@@ -159,15 +168,15 @@ const ES = async () => {
   while (daiTxs.length < 100) {
     deltaBlocks *= 2;
     const filter = {
-      address: dai.address,
-      fromBlock: latestBlock.number - deltaBlocks,
+      address: dai.address,
+      fromBlock: latestBlock.number - deltaBlocks,
       topics: [transferTopic],
     };
     const daiTxs = await ethers.provider.getLogs(filter);
   }
   let holder;
   const daiToPack = ethers.utils.parseUnits("20");
-  for (let i = daiTxs.length - 1; i >= 0; i--) {
+  for (let i = daiTxs.length - 1; i >= 0; i--) {
     const daiTx = daiTxs[i];
     const amountHex = daiTx.data;
     const amount = ethers.BigNumber.from(amountHex);
@@ -191,13 +200,35 @@ const ES = async () => {
   await daiJoin.connect(signer).join(holder, daiToPack);
   await vat.connect(signer).hope(end.address);
   await end.connect(signer).pack(daiToPack);
+}
 
-  // 9. `cash(ilk, wad)`: receive collateral
+// 9. `cash(ilk, wad)`: receive collateral
+const cash = async (ilk, vat, end, gemJoin) => {
   const gemBefore = await vat.connect(signer).gem(ilk, holder);
   await end.connect(signer).cash(ilk, daiToPack);
   const gemAfter = await vat.connect(signer).gem(ilk, holder);
   assert.ok(gemAfter.gt(gemBefore));
   await gemJoin.connect(signer).exit(holder, gemAfter);
+}
+
+const ES = async () => {
+
+  const {end, spotter, vat, vow, dai, daiJoin, gemJoin} = await getContracts();
+  const ilk = ethers.utils.formatBytes32String("ETH-C");
+  const urns = await vaults.list("ETH-C");
+
+  await triggerAuctions(urns, 3);
+  await cage(end);
+  await tag(ilk, end);
+  await snip(ilk, end);
+  await skim(end, urns);
+  await heal(vat, vow);
+  await free(ilk, end, urns);
+  await thaw(end);
+  await flow(ilk, end);
+  await pack(vat, end, daiJoin, dai);
+  await cash(ilk, vat, end, gemJoin);
+
 }
 
 ES();
