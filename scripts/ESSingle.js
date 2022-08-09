@@ -63,6 +63,7 @@ const getContracts = async () => {
 const getGemJoin = async ilkName => {
   const gemJoinAbi = [
     "function exit(address, uint256) external",
+    "function dec() external view returns (uint256)",
   ];
   const underscoreName = ilkName.replace("-", "_");
   const key = `MCD_JOIN_${underscoreName}`;
@@ -107,12 +108,18 @@ const snip = async (ilkName, end) => {
 }
 
 // 3. `skim(ilk, urn)`: close vaults
-const skim = async (ilk, end, urns) => {
-  console.log("skimming vaults…");
+const skim = async (ilkName, vat, end, vow, urns) => {
+  console.log(`skimming ${ilkName} vaults…`);
+  const ilk = ethers.utils.formatBytes32String(ilkName);
+  const sur = await vat.dai(vow.address);
   let counter = 0;
   for (urn of urns) {
     const percentage = Math.round(100 * counter++ / urns.length);
-    process.stdout.write(`${percentage}%\r`);
+    const sin = await vat.sin(vow.address);
+    const rem = sur.sub(sin);
+    const remPretty = ethers.utils.formatUnits(rem, 51);
+    const remShort = remPretty.substring(0, remPretty.indexOf(".") + 7);
+    process.stdout.write(`${percentage}% - surplus remaining: ${remShort} million\r`);
     await end.skim(ilk, urn);
   }
   console.log("done.");
@@ -134,8 +141,9 @@ const heal = async (vat, vow) => {
 }
 
 // 5. `free(ilk)`: remove remaining collateral from vaults
-const free = async (ilk, end, urns) => {
-  console.log("freeing vaults…");
+const free = async (ilkName, end, urns) => {
+  console.log(`freeing ${ilkName} vaults…`);
+  const ilk = ethers.utils.formatBytes32String(ilkName);
   counter = 0;
   for (const urn of urns) {
     const percentage = Math.round(100 * counter++ / urns.length);
@@ -154,6 +162,7 @@ const free = async (ilk, end, urns) => {
 
 // 6. `thaw()`
 const thaw = async end => {
+  console.log("thaw");
   const wait = await end.wait();
   await hre.network.provider.request({
     method: "evm_increaseTime",
@@ -163,12 +172,15 @@ const thaw = async end => {
 }
 
 // 7. `flow(ilk)`
-const flow = async (ilk, end) => {
+const flow = async (ilkName, end) => {
+  console.log(`flow ${ilkName}`);
+  const ilk = ethers.utils.formatBytes32String(ilkName);
   await end.flow(ilk);
 }
 
 // 8. `pack(wad)`: dai holders send dai
 const pack = async (vat, end, daiJoin, dai, daiToPack) => {
+  console.log("pack");
   const latestBlock = await ethers.provider.getBlock();
   const transferTopic = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("Transfer(address,address,uint256)"));
   let daiTxs = [];
@@ -211,36 +223,51 @@ const pack = async (vat, end, daiJoin, dai, daiToPack) => {
 }
 
 // 9. `cash(ilk, wad)`: receive collateral
-const cash = async (ilk, vat, end, gemJoin, daiJoin, dai, holder, daiToPack) => {
+const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack) => {
+  console.log(`cash ${ilkName}`);
+  const ilk = ethers.utils.formatBytes32String(ilkName);
   const signer = await ethers.getSigner(holder);
   await dai.connect(signer).approve(daiJoin.address, daiToPack);
   const gemBefore = await vat.connect(signer).gem(ilk, holder);
   await end.connect(signer).cash(ilk, daiToPack);
   const gemAfter = await vat.connect(signer).gem(ilk, holder);
   assert.ok(gemAfter.gt(gemBefore));
-  await gemJoin.connect(signer).exit(holder, gemAfter);
+  const dec = await gemJoin.dec();
+  const decDiff = ethers.BigNumber.from(18).sub(dec);
+  const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
+  const gemAfterDec = gemAfter.div(decDiffPow);
+  await gemJoin.connect(signer).exit(holder, gemAfterDec);
 }
 
 const ES = async () => {
 
   const {end, spotter, vat, vow, dai, daiJoin} = await getContracts();
-  let ilkName = "ETH-C";
-  let gemJoin = await getGemJoin(ilkName);
-  const ilk = ethers.utils.formatBytes32String(ilkName);
+  const ilkName = "ETH-C";
+  const ilkName2 = "WBTC-A";
+  const gemJoin = await getGemJoin(ilkName);
+  const gemJoin2 = await getGemJoin(ilkName2);
   const urns = await vaults.list(ilkName);
+  const urns2 = await vaults.list(ilkName2);
   const daiToPack = ethers.utils.parseUnits("20");
 
   await triggerAuctions(ilkName, urns, 3);
+  await triggerAuctions(ilkName2, urns2, 3);
   await cage(end);
   await tag(ilkName, end);
+  await tag(ilkName2, end);
   await snip(ilkName, end);
-  await skim(ilk, end, urns);
+  await snip(ilkName2, end);
+  await skim(ilkName, vat, end, vow, urns);
+  await skim(ilkName2, vat, end, vow, urns2);
   await heal(vat, vow);
-  await free(ilk, end, urns.splice(0, 3));
+  await free(ilkName, end, urns);
+  await free(ilkName2, end, urns2);
   await thaw(end);
-  await flow(ilk, end);
+  await flow(ilkName, end);
+  await flow(ilkName2, end);
   const holder = await pack(vat, end, daiJoin, dai, daiToPack);
-  await cash(ilk, vat, end, gemJoin, daiJoin, dai, holder, daiToPack);
+  await cash(ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack);
+  await cash(ilkName2, vat, end, gemJoin2, daiJoin, dai, holder, daiToPack);
 
 }
 
