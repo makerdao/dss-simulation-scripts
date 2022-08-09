@@ -99,7 +99,7 @@ const snip = async (ilk, end) => {
 }
 
 // 3. `skim(ilk, urn)`: close vaults
-const skim = async (end, urns) => {
+const skim = async (ilk, end, urns) => {
   console.log("skimming vaults…");
   let counter = 0;
   for (urn of urns) {
@@ -160,7 +160,7 @@ const flow = async (ilk, end) => {
 }
 
 // 8. `pack(wad)`: dai holders send dai
-const pack = async (vat, end, daiJoin, dai) => {
+const pack = async (vat, end, daiJoin, dai, daiToPack) => {
   const latestBlock = await ethers.provider.getBlock();
   const transferTopic = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("Transfer(address,address,uint256)"));
   let daiTxs = [];
@@ -172,10 +172,9 @@ const pack = async (vat, end, daiJoin, dai) => {
       fromBlock: latestBlock.number - deltaBlocks,
       topics: [transferTopic],
     };
-    const daiTxs = await ethers.provider.getLogs(filter);
+    daiTxs = await ethers.provider.getLogs(filter);
   }
   let holder;
-  const daiToPack = ethers.utils.parseUnits("20");
   for (let i = daiTxs.length - 1; i >= 0; i--) {
     const daiTx = daiTxs[i];
     const amountHex = daiTx.data;
@@ -200,10 +199,13 @@ const pack = async (vat, end, daiJoin, dai) => {
   await daiJoin.connect(signer).join(holder, daiToPack);
   await vat.connect(signer).hope(end.address);
   await end.connect(signer).pack(daiToPack);
+  return holder;
 }
 
 // 9. `cash(ilk, wad)`: receive collateral
-const cash = async (ilk, vat, end, gemJoin) => {
+const cash = async (ilk, vat, end, gemJoin, daiJoin, dai, holder, daiToPack) => {
+  const signer = await ethers.getSigner(holder);
+  await dai.connect(signer).approve(daiJoin.address, daiToPack);
   const gemBefore = await vat.connect(signer).gem(ilk, holder);
   await end.connect(signer).cash(ilk, daiToPack);
   const gemAfter = await vat.connect(signer).gem(ilk, holder);
@@ -216,18 +218,19 @@ const ES = async () => {
   const {end, spotter, vat, vow, dai, daiJoin, gemJoin} = await getContracts();
   const ilk = ethers.utils.formatBytes32String("ETH-C");
   const urns = await vaults.list("ETH-C");
+  const daiToPack = ethers.utils.parseUnits("20");
 
-  await triggerAuctions(urns, 3);
+  // await triggerAuctions(urns, 3);
   await cage(end);
   await tag(ilk, end);
-  await snip(ilk, end);
-  await skim(end, urns);
+  // await snip(ilk, end);
+  await skim(ilk, end, urns);
   await heal(vat, vow);
-  await free(ilk, end, urns);
+  // await free(ilk, end, urns);
   await thaw(end);
   await flow(ilk, end);
-  await pack(vat, end, daiJoin, dai);
-  await cash(ilk, vat, end, gemJoin);
+  const holder = await pack(vat, end, daiJoin, dai, daiToPack);
+  await cash(ilk, vat, end, gemJoin, daiJoin, dai, holder, daiToPack);
 
 }
 
