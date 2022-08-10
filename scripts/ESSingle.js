@@ -242,33 +242,33 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack)
 const ES = async () => {
 
   const {end, spotter, vat, vow, dai, daiJoin} = await getContracts();
-  const ilkName = "ETH-C";
-  const ilkName2 = "WBTC-A";
-  const gemJoin = await getGemJoin(ilkName);
-  const gemJoin2 = await getGemJoin(ilkName2);
-  const urns = await vaults.list(ilkName);
-  const urns2 = await vaults.list(ilkName2);
+  const ilkNames = ["ETH-C", "WBTC-A"];
+  const urns = {};
+  for (const ilkName of ilkNames) {
+    urns[ilkName] = await vaults.list(ilkName);
+    await triggerAuctions(ilkName, urns[ilkName], 3);
+  }
   const daiToPack = ethers.utils.parseUnits("20");
 
-  await triggerAuctions(ilkName, urns, 3);
-  await triggerAuctions(ilkName2, urns2, 3);
   await cage(end);
-  await tag(ilkName, end);
-  await tag(ilkName2, end);
-  await snip(ilkName, end);
-  await snip(ilkName2, end);
-  await skim(ilkName, vat, end, vow, urns);
-  await skim(ilkName2, vat, end, vow, urns2);
+  for (const ilkName of ilkNames) {
+    await tag(ilkName, end);
+    await snip(ilkName, end);
+    await skim(ilkName, vat, end, vow, urns[ilkName].splice(0, 1000));
+  }
   await heal(vat, vow);
-  await free(ilkName, end, urns);
-  await free(ilkName2, end, urns2);
   await thaw(end);
-  await flow(ilkName, end);
-  await flow(ilkName2, end);
+  for (const ilkName of ilkNames) {
+    await flow(ilkName, end);
+  }
   const holder = await pack(vat, end, daiJoin, dai, daiToPack);
-  await cash(ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack);
-  await cash(ilkName2, vat, end, gemJoin2, daiJoin, dai, holder, daiToPack);
-
+  for (const ilkName of ilkNames) {
+    const gemJoin = await getGemJoin(ilkName);
+    await cash(ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack);
+  }
+  for (const ilkName of ilkNames) {
+    await free(ilkName, end, urns[ilkName].splice(0, 10));
+  }
 }
 
 ES();
