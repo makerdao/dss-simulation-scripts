@@ -7,13 +7,17 @@ const list = async ilk => {
   const clipperAbi = [
     "function list() external view returns (uint256[])"
   ];
-  const clipperName = `MCD_CLIP_${ilk.replace("-", "_")}`;
-  const clipperAddr = await chainlog.get(clipperName);
-  const clipper = await ethers.getContractAt(clipperAbi, clipperAddr);
-  const listBN = await clipper.list();
-  const list =[];
-  listBN.forEach(id => list.push(id.toNumber()));
-  return list;
+  const clipperName = `MCD_CLIP_${ilk.replaceAll("-", "_")}`;
+  try {
+    const clipperAddr = await chainlog.get(clipperName);
+    const clipper = await ethers.getContractAt(clipperAbi, clipperAddr);
+    const listBN = await clipper.list();
+    const list = [];
+    listBN.forEach(id => list.push(id.toNumber()));
+    return list;
+  } catch (e) {
+    return [];
+  }
 }
 
 const bark = async (ilk, urn) => {

@@ -65,7 +65,7 @@ const getGemJoin = async ilkName => {
     "function exit(address, uint256) external",
     "function dec() external view returns (uint256)",
   ];
-  const underscoreName = ilkName.replace("-", "_");
+  const underscoreName = ilkName.replaceAll("-", "_");
   const key = `MCD_JOIN_${underscoreName}`;
   const gemJoinAddr = await chainlog.get(key);
   const gemJoin = await ethers.getContractAt(gemJoinAbi, gemJoinAddr);
@@ -242,19 +242,17 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack)
 const ES = async () => {
 
   const {end, spotter, vat, vow, dai, daiJoin} = await getContracts();
-  const ilkNames = ["ETH-C", "WBTC-A"];
-  const urns = {};
-  for (const ilkName of ilkNames) {
-    urns[ilkName] = await vaults.list(ilkName);
-    await triggerAuctions(ilkName, urns[ilkName], 3);
-  }
+  const ilkNames = ["UNIV2USDCETH-A", "RWA001-A", "PSM-USDC-A", "DIRECT-AAVEV2-DAI"];
+  const urnsETH = await vaults.list("ETH-A");
+  await triggerAuctions("ETH-A", urnsETH, 3);
   const daiToPack = ethers.utils.parseUnits("20");
 
   await cage(end);
   for (const ilkName of ilkNames) {
     await tag(ilkName, end);
     await snip(ilkName, end);
-    const subUrns = urns[ilkName].splice(0, 1000);
+    const urns = await vaults.list(ilkName);
+    const subUrns = urns.splice(0, 1000);
     await skim(ilkName, vat, end, vow, subUrns);
     const sample = subUrns.splice(0, 10);
     await free(ilkName, end, sample);
