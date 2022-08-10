@@ -254,7 +254,10 @@ const ES = async () => {
   for (const ilkName of ilkNames) {
     await tag(ilkName, end);
     await snip(ilkName, end);
-    await skim(ilkName, vat, end, vow, urns[ilkName].splice(0, 1000));
+    const subUrns = urns[ilkName].splice(0, 1000);
+    await skim(ilkName, vat, end, vow, subUrns);
+    const sample = subUrns.splice(0, 10);
+    await free(ilkName, end, sample);
   }
   await heal(vat, vow);
   await thaw(end);
@@ -265,9 +268,6 @@ const ES = async () => {
   for (const ilkName of ilkNames) {
     const gemJoin = await getGemJoin(ilkName);
     await cash(ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack);
-  }
-  for (const ilkName of ilkNames) {
-    await free(ilkName, end, urns[ilkName].splice(0, 10));
   }
 }
 
