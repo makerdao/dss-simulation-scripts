@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-file = open("./scripts/ESSingle.js")
+file = open("./scripts/ES.js")
 for line in file:
     new = line.replace("const {", "let {")
     new = new.replace("const", "")
