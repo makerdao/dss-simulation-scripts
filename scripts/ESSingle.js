@@ -202,8 +202,7 @@ const pack = async (vat, end, daiJoin, dai, daiToPack) => {
     const amount = ethers.BigNumber.from(amountHex);
     if (amount.gte(daiToPackWei)) {
       const holderHex32 = daiTx.topics[2];
-      const holderHexBytes = ethers.utils.stripZeros(holderHex32);
-      const holderHex = ethers.utils.hexlify(holderHexBytes);
+      const holderHex = "0x" + holderHex32.substring(2 + 2*12);
       holder = ethers.utils.getAddress(holderHex);
       const balance = await dai.balanceOf(holder);
       if (balance.gte(daiToPackWei)) break;
@@ -231,7 +230,7 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack)
   const fix = await end.fix(ilk);
   if (fix.eq(0)) {
     console.log(`nothing to cash from ${ilkName}`);
-    return;
+    return "0";
   }
   const signer = await ethers.getSigner(holder);
   await dai.connect(signer).approve(daiJoin.address, daiToPackWei);
@@ -245,8 +244,9 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack)
   const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
   const deltaDec = gemAfter.div(decDiffPow);
   await gemJoin.connect(signer).exit(holder, deltaDec);
-  const prettyDelta = ethers.utils.formatUnits(delta);
+  const prettyDelta = ethers.utils.formatUnits(deltaDec, dec);
   console.log(`got ${prettyDelta} ${ilkName}`);
+  return prettyDelta;
 }
 
 const ES = async () => {
@@ -263,7 +263,7 @@ const ES = async () => {
     await tag(ilkName, end);
     await snip(ilkName, end);
     const urns = await vaults.list(ilkName);
-    const subUrns = urns.splice(0, 400);
+    const subUrns = urns.splice(0, 200);
     await skim(ilkName, vat, end, vow, subUrns);
     const sample = subUrns.splice(0, 10);
     await free(ilkName, end, sample);
@@ -274,10 +274,14 @@ const ES = async () => {
     await flow(ilkName, end);
   }
   const holder = await pack(vat, end, daiJoin, dai, daiToPack);
+  const basket = {};
   for (const ilkName of ilkNames) {
     const gemJoin = await getGemJoin(ilkName);
-    await cash(ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack);
+    const amount = await cash(ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack);
+    basket[ilkName] = amount;
   }
+  console.log(`for ${daiToPack} DAI I got:`);
+  console.log(JSON.stringify(basket, null, 4));
 }
 
 ES();
