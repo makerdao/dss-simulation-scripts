@@ -23,6 +23,7 @@ const getContracts = async () => {
     "function flow(bytes32) external",
     "function pack(uint256) external",
     "function cash(bytes32 ilk, uint256 wad) external",
+    "function fix(bytes32) external view returns (uint256)",
   ];
   const spotterAbi = [
     "function ilks(bytes32) external view returns (address,uint256)"
@@ -73,7 +74,6 @@ const getGemJoin = async ilkName => {
 }
 
 const triggerAuctions = async (ilkName, urns, amount) => {
-  await oracles.setPrice(ilkName, 0.5);
   const underVaults = await vaults.listUnder(ilkName, urns, amount);
   for (let i = 0; i < underVaults.length; i++) {
     await auctions.bark(ilkName, underVaults[i]);
@@ -180,7 +180,8 @@ const flow = async (ilkName, end) => {
 
 // 8. `pack(wad)`: dai holders send dai
 const pack = async (vat, end, daiJoin, dai, daiToPack) => {
-  console.log("pack");
+  console.log(`pack ${daiToPack} DAI`);
+  const daiToPackWei = ethers.utils.parseUnits(daiToPack);
   const latestBlock = await ethers.provider.getBlock();
   const transferTopic = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("Transfer(address,address,uint256)"));
   let daiTxs = [];
@@ -199,13 +200,13 @@ const pack = async (vat, end, daiJoin, dai, daiToPack) => {
     const daiTx = daiTxs[i];
     const amountHex = daiTx.data;
     const amount = ethers.BigNumber.from(amountHex);
-    if (amount.gte(daiToPack)) {
+    if (amount.gte(daiToPackWei)) {
       const holderHex32 = daiTx.topics[2];
       const holderHexBytes = ethers.utils.stripZeros(holderHex32);
       const holderHex = ethers.utils.hexlify(holderHexBytes);
       holder = ethers.utils.getAddress(holderHex);
       const balance = await dai.balanceOf(holder);
-      if (balance.gte(daiToPack)) break;
+      if (balance.gte(daiToPackWei)) break;
     }
   }
   await hre.network.provider.send("hardhat_setCoinbase", [holder]);
@@ -215,21 +216,27 @@ const pack = async (vat, end, daiJoin, dai, daiToPack) => {
     params: [holder],
   });
   const signer = await ethers.getSigner(holder);
-  await dai.connect(signer).approve(daiJoin.address, daiToPack);
-  await daiJoin.connect(signer).join(holder, daiToPack);
+  await dai.connect(signer).approve(daiJoin.address, daiToPackWei);
+  await daiJoin.connect(signer).join(holder, daiToPackWei);
   await vat.connect(signer).hope(end.address);
-  await end.connect(signer).pack(daiToPack);
+  await end.connect(signer).pack(daiToPackWei);
   return holder;
 }
 
 // 9. `cash(ilk, wad)`: receive collateral
 const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack) => {
   console.log(`cash ${ilkName}`);
+  const daiToPackWei = ethers.utils.parseUnits(daiToPack);
   const ilk = ethers.utils.formatBytes32String(ilkName);
+  const fix = await end.fix(ilk);
+  if (fix.eq(0)) {
+    console.log(`nothing to cash from ${ilkName}`);
+    return;
+  }
   const signer = await ethers.getSigner(holder);
-  await dai.connect(signer).approve(daiJoin.address, daiToPack);
+  await dai.connect(signer).approve(daiJoin.address, daiToPackWei);
   const gemBefore = await vat.connect(signer).gem(ilk, holder);
-  await end.connect(signer).cash(ilk, daiToPack);
+  await end.connect(signer).cash(ilk, daiToPackWei);
   const gemAfter = await vat.connect(signer).gem(ilk, holder);
   assert.ok(gemAfter.gt(gemBefore));
   const dec = await gemJoin.dec();
@@ -242,17 +249,18 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack)
 const ES = async () => {
 
   const {end, spotter, vat, vow, dai, daiJoin} = await getContracts();
-  const ilkNames = ["UNIV2USDCETH-A", "RWA001-A", "PSM-USDC-A", "DIRECT-AAVEV2-DAI"];
-  const urnsETH = await vaults.list("ETH-A");
-  await triggerAuctions("ETH-A", urnsETH, 3);
-  const daiToPack = ethers.utils.parseUnits("20");
+  const ilkNames = ["ETH-C", "GUNIV3DAIUSDC1-A", "RWA002-A", "PSM-USDC-A", "DIRECT-AAVEV2-DAI", "AAVE-A"];
+  const urnsETH = await vaults.list("ETH-C");
+  await oracles.setPrice("ETH-C", 0.5);
+  await triggerAuctions("ETH-C", urnsETH, 3);
+  const daiToPack = "20";
 
   await cage(end);
   for (const ilkName of ilkNames) {
     await tag(ilkName, end);
     await snip(ilkName, end);
     const urns = await vaults.list(ilkName);
-    const subUrns = urns.splice(0, 1000);
+    const subUrns = urns.splice(0, 400);
     await skim(ilkName, vat, end, vow, subUrns);
     const sample = subUrns.splice(0, 10);
     await free(ilkName, end, sample);
