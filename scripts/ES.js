@@ -33,6 +33,7 @@ const getContracts = async () => {
     "function sin(address) external view returns (uint256)",
     "function hope(address) external",
     "function gem(bytes32, address) external view returns (uint256)",
+    "function ilks(bytes32) external view returns (uint256,uint256,uint256,uint256,uint256)",
   ];
   const vowAbi = [
     "function heal(uint256) external",
@@ -44,12 +45,16 @@ const getContracts = async () => {
   const daiJoinAbi = [
     "function join(address, uint256) external",
   ];
+  const ilkRegAbi = [
+    "function list() external view returns (bytes32[])",
+  ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
   const vatAddr = await chainlog.get("MCD_VAT");
   const vowAddr = await chainlog.get("MCD_VOW");
   const daiAddr = await chainlog.get("MCD_DAI");
   const daiJoinAddr = await chainlog.get("MCD_JOIN_DAI");
+  const ilkRegAddr = await chainlog.get("ILK_REGISTRY");
 
   const end = await ethers.getContractAt(endAbi, endAddr);
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
@@ -57,8 +62,9 @@ const getContracts = async () => {
   const vow = await ethers.getContractAt(vowAbi, vowAddr);
   const dai = await ethers.getContractAt(daiAbi, daiAddr);
   const daiJoin = await ethers.getContractAt(daiJoinAbi, daiJoinAddr);
+  const ilkReg = await ethers.getContractAt(ilkRegAbi, ilkRegAddr);
 
-  return {end, spotter, vat, vow, dai, daiJoin};
+  return {end, spotter, vat, vow, dai, daiJoin, ilkReg};
 }
 
 const getGemJoin = async ilkName => {
@@ -251,8 +257,16 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack)
 
 const ES = async () => {
 
-  const {end, spotter, vat, vow, dai, daiJoin} = await getContracts();
-  const ilkNames = ["ETH-C", "GUNIV3DAIUSDC1-A", "RWA002-A", "PSM-USDC-A", "DIRECT-AAVEV2-DAI", "AAVE-A"];
+  const {end, spotter, vat, vow, dai, daiJoin, ilkReg} = await getContracts();
+  const ilks = await ilkReg.list();
+  const ilkNames = [];
+  for (const ilk of ilks) {
+    const [Art, rate, spot] = await vat.ilks(ilk);
+    if (spot.gt(0)) {
+      ilkNames.push(ethers.utils.parseBytes32String(ilk));
+    }
+  }
+  console.log(ilkNames);
   const urnsETH = await vaults.list("ETH-C");
   await oracles.setPrice("ETH-C", 0.5);
   await triggerAuctions("ETH-C", urnsETH, 3);
@@ -263,7 +277,7 @@ const ES = async () => {
     await tag(ilkName, end);
     await snip(ilkName, end);
     const urns = await vaults.list(ilkName);
-    const subUrns = urns.splice(0, 200);
+    const subUrns = urns.splice(0, 50);
     await skim(ilkName, vat, end, vow, subUrns);
     const sample = subUrns.splice(0, 10);
     await free(ilkName, end, sample);
