@@ -184,10 +184,7 @@ const flow = async (ilkName, end) => {
   await end.flow(ilk);
 }
 
-// 8. `pack(wad)`: dai holders send dai
-const pack = async (vat, end, daiJoin, dai, daiToPack) => {
-  console.log(`pack ${daiToPack} DAI`);
-  const daiToPackWei = ethers.utils.parseUnits(daiToPack);
+const getHolderAddr = async (dai, daiToPack) => {
   const latestBlock = await ethers.provider.getBlock();
   const transferTopic = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("Transfer(address,address,uint256)"));
   let daiTxs = [];
@@ -202,6 +199,7 @@ const pack = async (vat, end, daiJoin, dai, daiToPack) => {
     daiTxs = await ethers.provider.getLogs(filter);
   }
   let holder;
+  const daiToPackWei = ethers.utils.parseUnits(daiToPack);
   for (let i = daiTxs.length - 1; i >= 0; i--) {
     const daiTx = daiTxs[i];
     const amountHex = daiTx.data;
@@ -214,22 +212,28 @@ const pack = async (vat, end, daiJoin, dai, daiToPack) => {
       if (balance.gte(daiToPackWei)) break;
     }
   }
-  await hre.network.provider.send("hardhat_setCoinbase", [holder]);
-  await hre.network.provider.send("evm_mine");
-  await hre.network.provider.request({
-    method: "hardhat_impersonateAccount",
-    params: [holder],
-  });
-  const signer = await ethers.getSigner(holder);
-  await dai.connect(signer).approve(daiJoin.address, daiToPackWei);
-  await daiJoin.connect(signer).join(holder, daiToPackWei);
-  await vat.connect(signer).hope(end.address);
-  await end.connect(signer).pack(daiToPackWei);
   return holder;
 }
 
+// 8. `pack(wad)`: dai holders send dai
+const pack = async (vat, end, daiJoin, dai, holderAddr, daiToPack) => {
+  console.log(`pack ${daiToPack} DAI`);
+  const daiToPackWei = ethers.utils.parseUnits(daiToPack);
+  await hre.network.provider.send("hardhat_setCoinbase", [holderAddr]);
+  await hre.network.provider.send("evm_mine");
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [holderAddr],
+  });
+  const holder = await ethers.getSigner(holderAddr);
+  await dai.connect(holder).approve(daiJoin.address, daiToPackWei);
+  await daiJoin.connect(holder).join(holderAddr, daiToPackWei);
+  await vat.connect(holder).hope(end.address);
+  await end.connect(holder).pack(daiToPackWei);
+}
+
 // 9. `cash(ilk, wad)`: receive collateral
-const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack) => {
+const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holderAddr, daiToPack) => {
   console.log(`cash ${ilkName}`);
   const daiToPackWei = ethers.utils.parseUnits(daiToPack);
   const ilk = ethers.utils.formatBytes32String(ilkName);
@@ -238,18 +242,18 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack)
     console.log(`nothing to cash from ${ilkName}`);
     return "0";
   }
-  const signer = await ethers.getSigner(holder);
+  const signer = await ethers.getSigner(holderAddr);
   await dai.connect(signer).approve(daiJoin.address, daiToPackWei);
-  const gemBefore = await vat.connect(signer).gem(ilk, holder);
+  const gemBefore = await vat.connect(signer).gem(ilk, holderAddr);
   await end.connect(signer).cash(ilk, daiToPackWei);
-  const gemAfter = await vat.connect(signer).gem(ilk, holder);
+  const gemAfter = await vat.connect(signer).gem(ilk, holderAddr);
   const delta = gemAfter.sub(gemBefore);
   assert.ok(delta.gt(0));
   const dec = await gemJoin.dec();
   const decDiff = ethers.BigNumber.from(18).sub(dec);
   const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
   const deltaDec = gemAfter.div(decDiffPow);
-  await gemJoin.connect(signer).exit(holder, deltaDec);
+  // await gemJoin.connect(signer).exit(holder, deltaDec);
   const prettyDelta = ethers.utils.formatUnits(deltaDec, dec);
   console.log(`got ${prettyDelta} ${ilkName}`);
   return prettyDelta;
@@ -259,17 +263,18 @@ const ES = async () => {
 
   const {end, spotter, vat, vow, dai, daiJoin, ilkReg} = await getContracts();
   const ilks = await ilkReg.list();
-  const ilkNames = [];
-  for (const ilk of ilks) {
-    const [Art, rate, spot] = await vat.ilks(ilk);
-    if (spot.gt(0)) {
-      ilkNames.push(ethers.utils.parseBytes32String(ilk));
-    }
-  }
+  const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
+  // const ilkNames = [];
+  // for (const ilk of ilks) {
+  //   const [Art, rate, spot] = await vat.ilks(ilk);
+  //   if (spot.gt(0)) {
+  //     ilkNames.push(ethers.utils.parseBytes32String(ilk));
+  //   }
+  // }
   console.log(ilkNames);
-  const urnsETH = await vaults.list("ETH-C");
-  await oracles.setPrice("ETH-C", 0.5);
-  await triggerAuctions("ETH-C", urnsETH, 3);
+  // const urnsETH = await vaults.list("ETH-C");
+  // await oracles.setPrice("ETH-C", 0.5);
+  // await triggerAuctions("ETH-C", urnsETH, 3);
   const daiToPack = "20";
 
   await cage(end);
@@ -287,11 +292,13 @@ const ES = async () => {
   for (const ilkName of ilkNames) {
     await flow(ilkName, end);
   }
-  const holder = await pack(vat, end, daiJoin, dai, daiToPack);
+  const holderAddr = await getHolderAddr(dai, daiToPack);
+  console.log(holderAddr);
+  await pack(vat, end, daiJoin, dai, holderAddr, daiToPack);
   const basket = {};
   for (const ilkName of ilkNames) {
     const gemJoin = await getGemJoin(ilkName);
-    const amount = await cash(ilkName, vat, end, gemJoin, daiJoin, dai, holder, daiToPack);
+    const amount = await cash(ilkName, vat, end, gemJoin, daiJoin, dai, holderAddr, daiToPack);
     basket[ilkName] = amount;
   }
   console.log(`for ${daiToPack} DAI I got:`);
