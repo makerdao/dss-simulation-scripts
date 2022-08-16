@@ -34,6 +34,7 @@ const getContracts = async () => {
     "function hope(address) external",
     "function gem(bytes32, address) external view returns (uint256)",
     "function ilks(bytes32) external view returns (uint256,uint256,uint256,uint256,uint256)",
+    "function flux(bytes32, address, address, uint256) external",
   ];
   const vowAbi = [
     "function heal(uint256) external",
@@ -48,6 +49,11 @@ const getContracts = async () => {
   const ilkRegAbi = [
     "function list() external view returns (bytes32[])",
   ];
+  const cropperAbi = [
+    "function getOrCreateProxy(address) external",
+    "function proxy(address) external view returns (address)",
+    "function flee(address, address, uint256)",
+  ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
   const vatAddr = await chainlog.get("MCD_VAT");
@@ -55,6 +61,7 @@ const getContracts = async () => {
   const daiAddr = await chainlog.get("MCD_DAI");
   const daiJoinAddr = await chainlog.get("MCD_JOIN_DAI");
   const ilkRegAddr = await chainlog.get("ILK_REGISTRY");
+  const cropperAddr = await chainlog.get("MCD_CROPPER");
 
   const end = await ethers.getContractAt(endAbi, endAddr);
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
@@ -63,8 +70,9 @@ const getContracts = async () => {
   const dai = await ethers.getContractAt(daiAbi, daiAddr);
   const daiJoin = await ethers.getContractAt(daiJoinAbi, daiJoinAddr);
   const ilkReg = await ethers.getContractAt(ilkRegAbi, ilkRegAddr);
+  const cropper = await ethers.getContractAt(cropperAbi, cropperAddr);
 
-  return {end, spotter, vat, vow, dai, daiJoin, ilkReg};
+  return {end, spotter, vat, vow, dai, daiJoin, ilkReg, cropper};
 }
 
 const getGemJoin = async ilkName => {
@@ -217,6 +225,7 @@ const getHolderAddr = async (dai, daiToPack) => {
 }
 
 const impersonate = async address => {
+  console.log(`impersonating ${address}`);
   await hre.network.provider.send("hardhat_setCoinbase", [address]);
   await hre.network.provider.send("evm_mine");
   await hre.network.provider.request({
@@ -256,8 +265,16 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holderAddr, daiToP
   const dec = await gemJoin.dec();
   const decDiff = ethers.BigNumber.from(18).sub(dec);
   const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
-  const deltaDec = gemAfter.div(decDiffPow);
-  // await gemJoin.connect(holder).exit(holder, deltaDec);
+  const deltaDec = delta.div(decDiffPow);
+  try {
+    await gemJoin.connect(holder).exit(holderAddr, deltaDec);
+  } catch (e) {
+    console.log("exit failed");
+    // await cropper.getOrCreateProxy(holderAddr);
+    // const proxyAddr = await cropper.proxy(holderAddr);
+    // await vat.connect(holder).flux(ilk, holderAddr, proxyAddr, delta);
+    // await cropper.connect(holder).flee(gemJoin.address, holderAddr, deltaDec);
+  }
   const prettyDelta = ethers.utils.formatUnits(deltaDec, dec);
   console.log(`got ${prettyDelta} ${ilkName}`);
   return prettyDelta;
@@ -265,7 +282,16 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holderAddr, daiToP
 
 const ES = async () => {
 
-  const {end, spotter, vat, vow, dai, daiJoin, ilkReg} = await getContracts();
+  const {
+    end,
+    spotter,
+    vat,
+    vow,
+    dai,
+    daiJoin,
+    ilkReg,
+    cropper,
+  } = await getContracts();
   const ilks = await ilkReg.list();
   const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
   // const ilkNames = [];
