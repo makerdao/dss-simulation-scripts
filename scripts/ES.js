@@ -243,18 +243,18 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holderAddr, daiToP
     console.log(`nothing to cash from ${ilkName}`);
     return "0";
   }
-  const signer = await ethers.getSigner(holderAddr);
-  await dai.connect(signer).approve(daiJoin.address, daiToPackWei);
-  const gemBefore = await vat.connect(signer).gem(ilk, holderAddr);
-  await end.connect(signer).cash(ilk, daiToPackWei);
-  const gemAfter = await vat.connect(signer).gem(ilk, holderAddr);
+  const holder = await ethers.getSigner(holderAddr);
+  await dai.connect(holder).approve(daiJoin.address, daiToPackWei);
+  const gemBefore = await vat.connect(holder).gem(ilk, holderAddr);
+  await end.connect(holder).cash(ilk, daiToPackWei);
+  const gemAfter = await vat.connect(holder).gem(ilk, holderAddr);
   const delta = gemAfter.sub(gemBefore);
   assert.ok(delta.gt(0));
   const dec = await gemJoin.dec();
   const decDiff = ethers.BigNumber.from(18).sub(dec);
   const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
   const deltaDec = gemAfter.div(decDiffPow);
-  // await gemJoin.connect(signer).exit(holder, deltaDec);
+  // await gemJoin.connect(holder).exit(holder, deltaDec);
   const prettyDelta = ethers.utils.formatUnits(deltaDec, dec);
   console.log(`got ${prettyDelta} ${ilkName}`);
   return prettyDelta;
