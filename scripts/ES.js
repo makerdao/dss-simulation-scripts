@@ -208,6 +208,7 @@ const getHolderAddr = async (dai, daiToPack) => {
       const holderHex32 = daiTx.topics[2];
       const holderHex = "0x" + holderHex32.substring(2 + 2*12);
       holder = ethers.utils.getAddress(holderHex);
+      if (holder === ethers.constants.AddressZero) continue;
       const balance = await dai.balanceOf(holder);
       if (balance.gte(daiToPackWei)) break;
     }
