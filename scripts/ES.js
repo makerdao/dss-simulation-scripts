@@ -216,16 +216,19 @@ const getHolderAddr = async (dai, daiToPack) => {
   return holder;
 }
 
+const impersonate = async address => {
+  await hre.network.provider.send("hardhat_setCoinbase", [address]);
+  await hre.network.provider.send("evm_mine");
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [address],
+  });
+}
+
 // 8. `pack(wad)`: dai holders send dai
 const pack = async (vat, end, daiJoin, dai, holderAddr, daiToPack) => {
   console.log(`pack ${daiToPack} DAI`);
   const daiToPackWei = ethers.utils.parseUnits(daiToPack);
-  await hre.network.provider.send("hardhat_setCoinbase", [holderAddr]);
-  await hre.network.provider.send("evm_mine");
-  await hre.network.provider.request({
-    method: "hardhat_impersonateAccount",
-    params: [holderAddr],
-  });
   const holder = await ethers.getSigner(holderAddr);
   await dai.connect(holder).approve(daiJoin.address, daiToPackWei);
   await daiJoin.connect(holder).join(holderAddr, daiToPackWei);
@@ -294,7 +297,7 @@ const ES = async () => {
     await flow(ilkName, end);
   }
   const holderAddr = await getHolderAddr(dai, daiToPack);
-  console.log(holderAddr);
+  await impersonate(holderAddr);
   await pack(vat, end, daiJoin, dai, holderAddr, daiToPack);
   const basket = {};
   for (const ilkName of ilkNames) {
