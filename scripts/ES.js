@@ -75,16 +75,25 @@ const getContracts = async () => {
   return {end, spotter, vat, vow, dai, daiJoin, ilkReg, cropper};
 }
 
-const getGemJoin = async ilkName => {
+const getIlkContracts = async ilkName => {
   const gemJoinAbi = [
     "function exit(address, uint256) external",
     "function dec() external view returns (uint256)",
+    "function gem() external view returns (address)",
+    // specific for crop join adapters
+    "function tack(address,address,uint256) external",
+    "function stake(address) external view returns (uint256)",
+  ];
+  const gemAbi = [
+    "function balanceOf(address) external view returns (uint256)",
   ];
   const underscoreName = ilkName.replaceAll("-", "_");
   const key = `MCD_JOIN_${underscoreName}`;
   const gemJoinAddr = await chainlog.get(key);
   const gemJoin = await ethers.getContractAt(gemJoinAbi, gemJoinAddr);
-  return gemJoin;
+  const gemAddr = await gemJoin.gem();
+  const gem = await ethers.getContractAt(gemAbi, gemAddr);
+  return {gemJoin, gem};
 }
 
 const triggerAuctions = async (ilkName, urns, amount) => {
@@ -123,7 +132,7 @@ const snip = async (ilkName, end) => {
 
 // 3. `skim(ilk, urn)`: close vaults
 const skim = async (ilkName, vat, end, vow, urns) => {
-  console.log(`skimming ${ilkName} vaults…`);
+  console.log(`skim ${ilkName} vaults`);
   const ilk = ethers.utils.formatBytes32String(ilkName);
   const sur = await vat.dai(vow.address);
   let counter = 0;
@@ -134,7 +143,15 @@ const skim = async (ilkName, vat, end, vow, urns) => {
     const remPretty = ethers.utils.formatUnits(rem, 51);
     const remShort = remPretty.substring(0, remPretty.indexOf(".") + 7);
     process.stdout.write(`${percentage}% - surplus remaining: ${remShort} million\r`);
+    const gemBefore = await vat.gem(ilk, end.address);
     await end.skim(ilk, urn);
+    if (ilkName === "CRVV1ETHSTETH-A") {
+      const gemAfter = await vat.gem(ilk, end.address);
+      const deltaGem = gemAfter.sub(gemBefore);
+      if (deltaGem.eq(0)) continue;
+      const {gemJoin, gem} = await getIlkContracts(ilkName);
+      await gemJoin.tack(urn, end.address, deltaGem);
+    }
   }
   console.log("done.");
 }
@@ -225,7 +242,7 @@ const getHolderAddr = async (dai, daiToPack) => {
 }
 
 const impersonate = async address => {
-  console.log(`impersonating ${address}`);
+  console.log(`impersonate ${address}`);
   await hre.network.provider.send("hardhat_setCoinbase", [address]);
   await hre.network.provider.send("evm_mine");
   await hre.network.provider.request({
@@ -246,7 +263,7 @@ const pack = async (vat, end, daiJoin, dai, holderAddr, daiToPack) => {
 }
 
 // 9. `cash(ilk, wad)`: receive collateral
-const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holderAddr, daiToPack) => {
+const cash = async (ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack) => {
   console.log(`cash ${ilkName}`);
   const daiToPackWei = ethers.utils.parseUnits(daiToPack);
   const ilk = ethers.utils.formatBytes32String(ilkName);
@@ -260,28 +277,39 @@ const cash = async (ilkName, vat, end, gemJoin, daiJoin, dai, holderAddr, daiToP
   const gemBefore = await vat.connect(holder).gem(ilk, holderAddr);
   await end.connect(holder).cash(ilk, daiToPackWei);
   const gemAfter = await vat.connect(holder).gem(ilk, holderAddr);
-  const delta = gemAfter.sub(gemBefore);
-  assert.ok(delta.gt(0));
+  const deltaGem = gemAfter.sub(gemBefore);
+  assert.ok(deltaGem.gt(0), "zero gem balance");
+  console.log(`got ${ethers.utils.formatUnits(deltaGem)} ${ilkName} as gem`);
+  return deltaGem;
+}
+
+const exit = async (ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem) => {
+  console.log(`exit ${ilkName}`);
   const dec = await gemJoin.dec();
   const decDiff = ethers.BigNumber.from(18).sub(dec);
   const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
-  const deltaDec = delta.div(decDiffPow);
-  try {
+  const deltaDec = deltaGem.div(decDiffPow);
+  const holder = await ethers.getSigner(holderAddr);
+  const balanceBefore = await gem.balanceOf(holderAddr);
+  if (ilkName === "CRVV1ETHSTETH-A") {
+    const ilk = ethers.utils.formatBytes32String(ilkName);
+    await cropper.getOrCreateProxy(holderAddr);
+    const proxyAddr = await cropper.proxy(holderAddr);
+    await vat.connect(holder).flux(ilk, holderAddr, proxyAddr, deltaGem);
+    await gemJoin.tack(end.address, proxyAddr, deltaGem);
+    await cropper.connect(holder).flee(gemJoin.address, holderAddr, deltaDec);
+  } else {
     await gemJoin.connect(holder).exit(holderAddr, deltaDec);
-  } catch (e) {
-    console.log("exit failed");
-    // await cropper.getOrCreateProxy(holderAddr);
-    // const proxyAddr = await cropper.proxy(holderAddr);
-    // await vat.connect(holder).flux(ilk, holderAddr, proxyAddr, delta);
-    // await cropper.connect(holder).flee(gemJoin.address, holderAddr, deltaDec);
   }
-  const prettyDelta = ethers.utils.formatUnits(deltaDec, dec);
-  console.log(`got ${prettyDelta} ${ilkName}`);
-  return prettyDelta;
+  const balanceAfter = await gem.balanceOf(holderAddr);
+  const deltaBalance = balanceAfter.sub(balanceBefore);
+  assert.ok(deltaBalance.gt(0), "zero token balance");
+  const prettyBalance = ethers.utils.formatUnits(deltaBalance, dec);
+  console.log(`got ${prettyBalance} ${ilkName}`);
+  return prettyBalance;
 }
 
 const ES = async () => {
-
   const {
     end,
     spotter,
@@ -327,11 +355,11 @@ const ES = async () => {
   await pack(vat, end, daiJoin, dai, holderAddr, daiToPack);
   const basket = {};
   for (const ilkName of ilkNames) {
-    const gemJoin = await getGemJoin(ilkName);
-    const amount = await cash(ilkName, vat, end, gemJoin, daiJoin, dai, holderAddr, daiToPack);
-    basket[ilkName] = amount;
+    const {gemJoin, gem} = await getIlkContracts(ilkName);
+    const deltaGem = await cash(ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack);
+    basket[ilkName] = await exit(ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem);
   }
-  console.log(`for ${daiToPack} DAI I got:`);
+  console.log(`for ${daiToPack} DAI, user ${holderAddr} got:`);
   console.log(JSON.stringify(basket, null, 4));
 }
 
