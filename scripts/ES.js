@@ -131,7 +131,7 @@ const snip = async (ilkName, end) => {
 }
 
 // 3. `skim(ilk, urn)`: close vaults
-const skim = async (ilkName, vat, end, vow, urns) => {
+const skim = async (ilkName, vat, end, vow, urns, cropIlks) => {
   console.log(`skim ${ilkName} vaults`);
   const ilk = ethers.utils.formatBytes32String(ilkName);
   const sur = await vat.dai(vow.address);
@@ -145,7 +145,7 @@ const skim = async (ilkName, vat, end, vow, urns) => {
     process.stdout.write(`${percentage}% - surplus remaining: ${remShort} million\r`);
     const gemBefore = await vat.gem(ilk, end.address);
     await end.skim(ilk, urn);
-    if (ilkName === "CRVV1ETHSTETH-A") {
+    if (cropIlks.includes(ilkName)) {
       const gemAfter = await vat.gem(ilk, end.address);
       const deltaGem = gemAfter.sub(gemBefore);
       if (deltaGem.eq(0)) continue;
@@ -283,7 +283,7 @@ const cash = async (ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack) => {
   return deltaGem;
 }
 
-const exit = async (ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem) => {
+const exit = async (ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem, cropIlks) => {
   console.log(`exit ${ilkName}`);
   const dec = await gemJoin.dec();
   const decDiff = ethers.BigNumber.from(18).sub(dec);
@@ -291,7 +291,8 @@ const exit = async (ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaG
   const deltaDec = deltaGem.div(decDiffPow);
   const holder = await ethers.getSigner(holderAddr);
   const balanceBefore = await gem.balanceOf(holderAddr);
-  if (ilkName === "CRVV1ETHSTETH-A") {
+  if (cropIlks.includes(ilkName)) {
+    console.log(`flux, tack, flee`);
     const ilk = ethers.utils.formatBytes32String(ilkName);
     await cropper.getOrCreateProxy(holderAddr);
     const proxyAddr = await cropper.proxy(holderAddr);
@@ -322,6 +323,7 @@ const ES = async () => {
   } = await getContracts();
   const ilks = await ilkReg.list();
   const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
+  const cropIlks = ["CRVV1ETHSTETH-A"];
   // const ilkNames = [];
   // for (const ilk of ilks) {
   //   const [Art, rate, spot] = await vat.ilks(ilk);
@@ -341,7 +343,7 @@ const ES = async () => {
     await snip(ilkName, end);
     const urns = await vaults.list(ilkName);
     const subUrns = urns.splice(0, 50);
-    await skim(ilkName, vat, end, vow, subUrns);
+    await skim(ilkName, vat, end, vow, subUrns, cropIlks);
     const sample = subUrns.splice(0, 10);
     await free(ilkName, end, sample);
   }
@@ -357,7 +359,7 @@ const ES = async () => {
   for (const ilkName of ilkNames) {
     const {gemJoin, gem} = await getIlkContracts(ilkName);
     const deltaGem = await cash(ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack);
-    basket[ilkName] = await exit(ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem);
+    basket[ilkName] = await exit(ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem, cropIlks);
   }
   console.log(`for ${daiToPack} DAI, user ${holderAddr} got:`);
   console.log(JSON.stringify(basket, null, 4));
