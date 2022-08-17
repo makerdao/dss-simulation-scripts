@@ -289,6 +289,10 @@ const exit = async (ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaG
   const decDiff = ethers.BigNumber.from(18).sub(dec);
   const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
   const deltaDec = deltaGem.div(decDiffPow);
+  if (deltaDec.eq(0)) {
+    console.log(`got 0 ${ilkName}`);
+    return "0";
+  }
   const holder = await ethers.getSigner(holderAddr);
   const balanceBefore = await gem.balanceOf(holderAddr);
   if (cropIlks.includes(ilkName)) {
@@ -322,33 +326,33 @@ const ES = async () => {
     cropper,
   } = await getContracts();
   const ilks = await ilkReg.list();
-  const ilkNames = ["PSM-USDC-A", "BAT-A"];
-  // const ilkNames = [];
-  // for (const ilk of ilks) {
-  //   const [Art, rate, spot] = await vat.ilks(ilk);
-  //   if (spot.gt(0)) {
-  //     ilkNames.push(ethers.utils.parseBytes32String(ilk));
-  //   } else {
-  //     discardedIlks.push(ethers.utils.parseBytes32String(ilk));
-  //   }
-  // }
-  // const urnsETH = await vaults.list("ETH-C");
-  // await oracles.setPrice("ETH-C", 0.5);
-  // await triggerAuctions("ETH-C", urnsETH, 3);
   const cropIlks = ["CRVV1ETHSTETH-A"];
   const discardedIlks = [];
+  // const ilkNames = ["PSM-USDC-A", "BAT-A"];
+  const ilkNames = [];
+  for (const ilk of ilks) {
+    const [Art, rate, spot] = await vat.ilks(ilk);
+    if (spot.gt(0)) {
+      ilkNames.push(ethers.utils.parseBytes32String(ilk));
+    } else {
+      discardedIlks.push(ethers.utils.parseBytes32String(ilk));
+    }
+  }
+  const urnsETH = await vaults.list("ETH-C");
+  await oracles.setPrice("ETH-C", 0.5);
+  await triggerAuctions("ETH-C", urnsETH, 3);
   console.log("ilks pris en compte:");
   console.log(ilkNames);
   console.log("discarded ilks:");
   console.log(discardedIlks);
-  const daiToPack = "20";
+  const daiToPack = "1";
 
   await cage(end);
   for (const ilkName of ilkNames) {
     await tag(ilkName, end);
     await snip(ilkName, end);
     const urns = await vaults.list(ilkName);
-    const subUrns = urns.splice(0, 50);
+    const subUrns = urns.splice(0, 20);
     await skim(ilkName, vat, end, vow, subUrns, cropIlks);
     const sample = subUrns.splice(0, 10);
     await free(ilkName, end, sample);
