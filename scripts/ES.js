@@ -270,7 +270,7 @@ const cash = async (ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack) => {
   const fix = await end.fix(ilk);
   if (fix.eq(0)) {
     console.log(`nothing to cash from ${ilkName}`);
-    return "0";
+    return ethers.BigNumber.from(0);
   }
   const holder = await ethers.getSigner(holderAddr);
   await dai.connect(holder).approve(daiJoin.address, daiToPackWei);
@@ -322,19 +322,25 @@ const ES = async () => {
     cropper,
   } = await getContracts();
   const ilks = await ilkReg.list();
-  const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
-  const cropIlks = ["CRVV1ETHSTETH-A"];
+  const ilkNames = ["PSM-USDC-A", "BAT-A"];
   // const ilkNames = [];
   // for (const ilk of ilks) {
   //   const [Art, rate, spot] = await vat.ilks(ilk);
   //   if (spot.gt(0)) {
   //     ilkNames.push(ethers.utils.parseBytes32String(ilk));
+  //   } else {
+  //     discardedIlks.push(ethers.utils.parseBytes32String(ilk));
   //   }
   // }
-  console.log(ilkNames);
   // const urnsETH = await vaults.list("ETH-C");
   // await oracles.setPrice("ETH-C", 0.5);
   // await triggerAuctions("ETH-C", urnsETH, 3);
+  const cropIlks = ["CRVV1ETHSTETH-A"];
+  const discardedIlks = [];
+  console.log("ilks pris en compte:");
+  console.log(ilkNames);
+  console.log("discarded ilks:");
+  console.log(discardedIlks);
   const daiToPack = "20";
 
   await cage(end);
@@ -359,7 +365,9 @@ const ES = async () => {
   for (const ilkName of ilkNames) {
     const {gemJoin, gem} = await getIlkContracts(ilkName);
     const deltaGem = await cash(ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack);
-    basket[ilkName] = await exit(ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem, cropIlks);
+    if (deltaGem.gt(0)) {
+      basket[ilkName] = await exit(ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem, cropIlks);
+    }
   }
   console.log(`for ${daiToPack} DAI, user ${holderAddr} got:`);
   console.log(JSON.stringify(basket, null, 4));
