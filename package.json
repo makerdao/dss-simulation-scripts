@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "hardhat-change-network": "^0.0.7",
-    "node-fetch": "^3.2.3"
+    "node-fetch": "^3.2.3",
+    "snowflake-sdk": "^1.6.12"
   },
   "version": "1.22.18"
 }
