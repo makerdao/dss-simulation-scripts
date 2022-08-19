@@ -172,7 +172,7 @@ const heal = async (vat, vow) => {
 }
 
 // 5. `free(ilk)`: remove remaining collateral from vaults
-const free = async (ilkName, end, urns) => {
+const free = async (ilkName, end, vat, urns) => {
   console.log(`freeing ${ilkName} vaults…`);
   const ilk = ethers.utils.formatBytes32String(ilkName);
   counter = 0;
@@ -186,9 +186,33 @@ const free = async (ilkName, end, urns) => {
       params: [urn],
     });
     const owner = await ethers.getSigner(urn);
+    const gemBefore = await vat.gem(ilk, urn);
     await end.connect(owner).free(ilk);
+    const gemAfter = await vat.gem(ilk, urn);
+    const deltaGem = gemAfter.sub(gemBefore);
+    console.log(`got ${ethers.utils.formatUnits(deltaGem)} ${ilkName} as gem`);
+    const {gemJoin, gem} = await getIlkContracts(ilkName);
+    await exitVault(ilkName, gemJoin, gem, urn, deltaGem);
   }
   console.log("done.");
+}
+
+const exitVault = async (ilkName, gemJoin, gem, urn, deltaGem) => {
+  console.log(`exit ${ilkName} vault`);
+  const dec = await gemJoin.dec();
+  const decDiff = ethers.BigNumber.from(18).sub(dec);
+  const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
+  const deltaDec = deltaGem.div(decDiffPow);
+  if (deltaDec.eq(0)) {
+    console.log(`got 0 ${ilkName}`);
+    return;
+  }
+  const signer = await ethers.getSigner(urn);
+  const balanceBefore = await gem.balanceOf(urn);
+  await gemJoin.connect(signer).exit(urn, deltaDec);
+  const balanceAfter = await gem.balanceOf(urn);
+  const deltaBalance = balanceAfter.sub(balanceBefore);
+  console.log(`got ${ethers.utils.formatUnits(deltaBalance, dec)} ${ilkName}`);
 }
 
 // 6. `thaw()`
