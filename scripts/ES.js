@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-const assert = require("assert");
 const hre = require("hardhat");
 const ethers = hre.ethers;
 const governance = require("../utils/governance");
@@ -307,7 +306,6 @@ const cash = async (ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack) => {
   await end.connect(holder).cash(ilk, daiToPackWei);
   const gemAfter = await vat.gem(ilk, holderAddr);
   const deltaGem = gemAfter.sub(gemBefore);
-  assert.ok(deltaGem.gt(0), "zero gem balance");
   console.log(`got ${ethers.utils.formatUnits(deltaGem)} ${ilkName} as gem`);
   return deltaGem;
 }
@@ -337,7 +335,6 @@ const exit = async (ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaG
   }
   const balanceAfter = await gem.balanceOf(holderAddr);
   const deltaBalance = balanceAfter.sub(balanceBefore);
-  assert.ok(deltaBalance.gt(0), "zero token balance");
   const prettyBalance = ethers.utils.formatUnits(deltaBalance, dec);
   console.log(`got ${prettyBalance} ${ilkName}`);
   return prettyBalance;
@@ -374,7 +371,6 @@ const ES = async () => {
   console.log(ilkNames);
   console.log("discarded ilks:");
   console.log(discardedIlks);
-  const daiToPack = "1";
 
   await cage(end);
   for (const ilkName of ilkNames) {
@@ -394,8 +390,13 @@ const ES = async () => {
   // const holderAddr = await getHolderAddr(dai, daiToPack);
   console.log("getting DAI holders on block 15,371,847…");
   const holders = await snowflake.getHolders(15371847);
-  for (const holder of holders.splice(0, 2)) {
+  for (const holder of holders.splice(holders.length - 100005, holders.length - 100000)) {
+    console.log(holder);
     const holderAddr = holder.HOLDER;
+    const daiToPackWei = ethers.BigNumber.from(holder.BALANCE === "0x" ? 0 : BigInt(parseInt(holder.BALANCE, 16)));
+    const daiToPack = ethers.utils.formatUnits(daiToPackWei);
+    // const daiToPack = "1";
+    console.log(`user ${holderAddr} is cashing ${daiToPack} DAI (${daiToPackWei.toString()})`);
     await impersonate(holderAddr);
     await pack(vat, end, daiJoin, dai, holderAddr, daiToPack);
     const basket = {};

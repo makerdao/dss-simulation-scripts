@@ -20,12 +20,11 @@ const queryHolders = (blockNumber, onLoad, onFail) => {
       const stmt = conn.execute({
         sqlText: `
 select distinct substr(location, 3, 42) as holder,
-    tools.public.hextoint(last_value(curr_value) over (partition by location order by block, order_index)) as balance
+    last_value(curr_value) over (partition by location order by block, order_index) as balance
 from storage_diffs
 where contract = '0x6b175474e89094c44da98b954eedeac495271d0f' and
     location like '2[%].0' and status and block <= :1
-qualify balance > 0
-order by balance desc;
+qualify balance != '0x';
         `,
         binds: [blockNumber],
         complete: (err, stmt, rows) => {
@@ -52,6 +51,9 @@ order by balance desc;
 const getHolders = blockNumber => {
   return new Promise((resolve, reject) => {
     queryHolders(blockNumber, resolve, reject);
+  }).catch(error => {
+    console.error(error);
+    process.exit();
   });
 }
 
