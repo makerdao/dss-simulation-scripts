@@ -1,6 +1,6 @@
 const snowflake = require("snowflake-sdk");
 
-const query = (blockNumber, onLoad, onFail) => {
+const queryHolders = (blockNumber, onLoad, onFail) => {
 
   const connection = snowflake.createConnection({
     account: process.env["SNOWFLAKE_ACCOUNT"],
@@ -49,12 +49,12 @@ order by balance desc;
   });
 }
 
-const get = blockNumber => {
+const getHolders = blockNumber => {
   return new Promise((resolve, reject) => {
-    query(blockNumber, resolve, reject);
+    queryHolders(blockNumber, resolve, reject);
   });
 }
 
 module.exports = {
-  get: get,
+  getHolders,
 }
