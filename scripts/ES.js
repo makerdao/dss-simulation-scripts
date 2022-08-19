@@ -190,7 +190,6 @@ const free = async (ilkName, end, vat, urns) => {
     await end.connect(owner).free(ilk);
     const gemAfter = await vat.gem(ilk, urn);
     const deltaGem = gemAfter.sub(gemBefore);
-    console.log(`got ${ethers.utils.formatUnits(deltaGem)} ${ilkName} as gem`);
     const {gemJoin, gem} = await getIlkContracts(ilkName);
     await exitVault(ilkName, gemJoin, gem, urn, deltaGem);
   }
@@ -198,21 +197,17 @@ const free = async (ilkName, end, vat, urns) => {
 }
 
 const exitVault = async (ilkName, gemJoin, gem, urn, deltaGem) => {
-  console.log(`exit ${ilkName} vault`);
   const dec = await gemJoin.dec();
   const decDiff = ethers.BigNumber.from(18).sub(dec);
   const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
   const deltaDec = deltaGem.div(decDiffPow);
-  if (deltaDec.eq(0)) {
-    console.log(`got 0 ${ilkName}`);
-    return;
-  }
+  if (deltaDec.eq(0)) return;
   const signer = await ethers.getSigner(urn);
   const balanceBefore = await gem.balanceOf(urn);
   await gemJoin.connect(signer).exit(urn, deltaDec);
   const balanceAfter = await gem.balanceOf(urn);
   const deltaBalance = balanceAfter.sub(balanceBefore);
-  console.log(`got ${ethers.utils.formatUnits(deltaBalance, dec)} ${ilkName}`);
+  console.log(`freed ${ethers.utils.formatUnits(deltaBalance, dec)} ${ilkName} from urn ${urn}`);
 }
 
 // 6. `thaw()`
@@ -298,9 +293,9 @@ const cash = async (ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack) => {
   }
   const holder = await ethers.getSigner(holderAddr);
   await dai.connect(holder).approve(daiJoin.address, daiToPackWei);
-  const gemBefore = await vat.connect(holder).gem(ilk, holderAddr);
+  const gemBefore = await vat.gem(ilk, holderAddr);
   await end.connect(holder).cash(ilk, daiToPackWei);
-  const gemAfter = await vat.connect(holder).gem(ilk, holderAddr);
+  const gemAfter = await vat.gem(ilk, holderAddr);
   const deltaGem = gemAfter.sub(gemBefore);
   assert.ok(deltaGem.gt(0), "zero gem balance");
   console.log(`got ${ethers.utils.formatUnits(deltaGem)} ${ilkName} as gem`);
@@ -352,16 +347,16 @@ const ES = async () => {
   const ilks = await ilkReg.list();
   const cropIlks = ["CRVV1ETHSTETH-A"];
   const discardedIlks = [];
-  // const ilkNames = ["PSM-USDC-A", "BAT-A"];
-  const ilkNames = [];
-  for (const ilk of ilks) {
-    const [Art, rate, spot] = await vat.ilks(ilk);
-    if (spot.gt(0)) {
-      ilkNames.push(ethers.utils.parseBytes32String(ilk));
-    } else {
-      discardedIlks.push(ethers.utils.parseBytes32String(ilk));
-    }
-  }
+  const ilkNames = ["PSM-USDC-A", "ETH-C"];
+  // const ilkNames = [];
+  // for (const ilk of ilks) {
+  //   const [Art, rate, spot] = await vat.ilks(ilk);
+  //   if (spot.gt(0)) {
+  //     ilkNames.push(ethers.utils.parseBytes32String(ilk));
+  //   } else {
+  //     discardedIlks.push(ethers.utils.parseBytes32String(ilk));
+  //   }
+  // }
   const urnsETH = await vaults.list("ETH-C");
   await oracles.setPrice("ETH-C", 0.5);
   await triggerAuctions("ETH-C", urnsETH, 3);
@@ -379,7 +374,7 @@ const ES = async () => {
     const subUrns = urns.splice(0, 20);
     await skim(ilkName, vat, end, vow, subUrns, cropIlks);
     const sample = subUrns.splice(0, 10);
-    await free(ilkName, end, sample);
+    await free(ilkName, end, vat, sample);
   }
   await heal(vat, vow);
   await thaw(end);
