@@ -8,6 +8,7 @@ const chainlog = require("../utils/chainlog");
 const oracles = require("../utils/oracles");
 const vaults = require("../utils/vaults");
 const auctions = require("../utils/auctions");
+const snowflake = require("../utils/snowflake");
 
 
 const getContracts = async () => {
@@ -366,9 +367,9 @@ const ES = async () => {
   //     discardedIlks.push(ethers.utils.parseBytes32String(ilk));
   //   }
   // }
-  const urnsETH = await vaults.list("ETH-C");
-  await oracles.setPrice("ETH-C", 0.5);
-  await triggerAuctions("ETH-C", urnsETH, 3);
+  // const urnsETH = await vaults.list("ETH-C");
+  // await oracles.setPrice("ETH-C", 0.5);
+  // await triggerAuctions("ETH-C", urnsETH, 3);
   console.log("ilks pris en compte:");
   console.log(ilkNames);
   console.log("discarded ilks:");
@@ -390,19 +391,24 @@ const ES = async () => {
   for (const ilkName of ilkNames) {
     await flow(ilkName, end);
   }
-  const holderAddr = await getHolderAddr(dai, daiToPack);
-  await impersonate(holderAddr);
-  await pack(vat, end, daiJoin, dai, holderAddr, daiToPack);
-  const basket = {};
-  for (const ilkName of ilkNames) {
-    const {gemJoin, gem} = await getIlkContracts(ilkName);
-    const deltaGem = await cash(ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack);
-    if (deltaGem.gt(0)) {
-      basket[ilkName] = await exit(ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem, cropIlks);
+  // const holderAddr = await getHolderAddr(dai, daiToPack);
+  console.log("getting DAI holders on block 15,371,847…");
+  const holders = await snowflake.getHolders(15371847);
+  for (const holder of holders.splice(0, 2)) {
+    const holderAddr = holder.HOLDER;
+    await impersonate(holderAddr);
+    await pack(vat, end, daiJoin, dai, holderAddr, daiToPack);
+    const basket = {};
+    for (const ilkName of ilkNames) {
+      const {gemJoin, gem} = await getIlkContracts(ilkName);
+      const deltaGem = await cash(ilkName, vat, end, daiJoin, dai, holderAddr, daiToPack);
+      if (deltaGem.gt(0)) {
+        basket[ilkName] = await exit(ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaGem, cropIlks);
+      }
     }
+    console.log(`for ${daiToPack} DAI, user ${holderAddr} got:`);
+    console.log(JSON.stringify(basket, null, 4));
   }
-  console.log(`for ${daiToPack} DAI, user ${holderAddr} got:`);
-  console.log(JSON.stringify(basket, null, 4));
 }
 
 ES();
