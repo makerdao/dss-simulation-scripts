@@ -172,7 +172,7 @@ const heal = async (vat, vow) => {
 }
 
 // 5. `free(ilk)`: remove remaining collateral from vaults
-const free = async (ilkName, end, vat, urns) => {
+const free = async (ilkName, vat, end, cropper, urns, cropIlks) => {
   console.log(`freeing ${ilkName} vaults…`);
   const ilk = ethers.utils.formatBytes32String(ilkName);
   counter = 0;
@@ -191,12 +191,12 @@ const free = async (ilkName, end, vat, urns) => {
     const gemAfter = await vat.gem(ilk, urn);
     const deltaGem = gemAfter.sub(gemBefore);
     const {gemJoin, gem} = await getIlkContracts(ilkName);
-    await exitVault(ilkName, gemJoin, gem, urn, deltaGem);
+    await exitVault(ilkName, vat, cropper, gemJoin, gem, urn, deltaGem, cropIlks);
   }
   console.log("done.");
 }
 
-const exitVault = async (ilkName, gemJoin, gem, urn, deltaGem) => {
+const exitVault = async (ilkName, vat, cropper, gemJoin, gem, urn, deltaGem, cropIlks) => {
   const dec = await gemJoin.dec();
   const decDiff = ethers.BigNumber.from(18).sub(dec);
   const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
@@ -204,7 +204,16 @@ const exitVault = async (ilkName, gemJoin, gem, urn, deltaGem) => {
   if (deltaDec.eq(0)) return;
   const signer = await ethers.getSigner(urn);
   const balanceBefore = await gem.balanceOf(urn);
-  await gemJoin.connect(signer).exit(urn, deltaDec);
+  if (cropIlks.includes(ilkName)) {
+    const ilk = ethers.utils.formatBytes32String(ilkName);
+    await cropper.getOrCreateProxy(urn);
+    const proxyAddr = await cropper.proxy(urn);
+    await vat.connect(signer).flux(ilk, urn, proxyAddr, deltaGem);
+    await gemJoin.tack(urn, proxyAddr, deltaGem);
+    await cropper.connect(signer).flee(gemJoin.address, urn, deltaDec);
+  } else {
+    await gemJoin.connect(signer).exit(urn, deltaDec);
+  }
   const balanceAfter = await gem.balanceOf(urn);
   const deltaBalance = balanceAfter.sub(balanceBefore);
   console.log(`freed ${ethers.utils.formatUnits(deltaBalance, dec)} ${ilkName} from urn ${urn}`);
@@ -374,7 +383,7 @@ const ES = async () => {
     const subUrns = urns.splice(0, 20);
     await skim(ilkName, vat, end, vow, subUrns, cropIlks);
     const sample = subUrns.splice(0, 10);
-    await free(ilkName, end, vat, sample);
+    await free(ilkName, vat, end, cropper, sample, cropIlks);
   }
   await heal(vat, vow);
   await thaw(end);
