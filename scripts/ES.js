@@ -86,6 +86,7 @@ const getIlkContracts = async ilkName => {
   ];
   const gemAbi = [
     "function balanceOf(address) external view returns (uint256)",
+    "function name() external view returns (string)",
   ];
   const underscoreName = ilkName.replaceAll("-", "_");
   const key = `MCD_JOIN_${underscoreName}`;
@@ -331,7 +332,17 @@ const exit = async (ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaG
     await gemJoin.tack(end.address, proxyAddr, deltaGem);
     await cropper.connect(holder).flee(gemJoin.address, holderAddr, deltaDec);
   } else {
-    await gemJoin.connect(holder).exit(holderAddr, deltaDec);
+    try {
+      await gemJoin.connect(holder).exit(holderAddr, deltaDec);
+    } catch (e) {
+      if (e.message.includes("account is blacklisted")) {
+        console.log(`holder blacklisted by ${await gem.name()}`);
+        return "0";
+      } else {
+        console.error(e);
+        process.exit();
+      }
+    }
   }
   const balanceAfter = await gem.balanceOf(holderAddr);
   const deltaBalance = balanceAfter.sub(balanceBefore);
@@ -392,7 +403,20 @@ const ES = async () => {
   console.log(`getting DAI holders on block ${blockNumber}…`);
   const holders = await snowflake.getHolders(blockNumber);
   for (const holder of holders) {
-    const holderAddr = holder.HOLDER;
+    console.log(holder);
+    const holderAddrRaw = holder.LOCATION.replace(/.*\[(.*)\].*/g, "$1");
+    console.log(holderAddrRaw);
+    let holderAddr;
+    if (holderAddrRaw.startsWith("0x")) {
+      holderAddr = holderAddrRaw;
+    } else {
+      const number = ethers.BigNumber.from(holderAddrRaw);
+      const hexString = number.toHexString();
+      const string = hexString.substring(2);
+      const padString = string.padStart(40, "0");
+      holderAddr = "0x" + padString;
+    }
+    console.log(holderAddr);
     //const daiToPackWei = ethers.BigNumber.from(holder.BALANCE === "0x" ? 0 : holder.BALANCE);
     const daiToPackWei = await dai.balanceOf(holderAddr);
     const daiToPack = ethers.utils.formatUnits(daiToPackWei);

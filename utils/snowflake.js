@@ -19,7 +19,7 @@ const queryHolders = (blockNumber, onLoad, onFail) => {
       console.log(`opened connection ${connId}`);
       const stmt = conn.execute({
         sqlText: `
-select distinct substr(location, 3, 42) as holder,
+select distinct location,
     last_value(curr_value) over (partition by location order by block, order_index) as balance
 from storage_diffs
 where contract = '0x6b175474e89094c44da98b954eedeac495271d0f' and
