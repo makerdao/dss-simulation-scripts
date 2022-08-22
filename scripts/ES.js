@@ -354,7 +354,7 @@ const ES = async () => {
   const ilks = await ilkReg.list();
   const cropIlks = ["CRVV1ETHSTETH-A"];
   const discardedIlks = [];
-  const ilkNames = ["PSM-USDC-A", "ETH-C"];
+  const ilkNames = ["PSM-USDC-A"];
   // const ilkNames = [];
   // for (const ilk of ilks) {
   //   const [Art, rate, spot] = await vat.ilks(ilk);
@@ -388,12 +388,13 @@ const ES = async () => {
     await flow(ilkName, end);
   }
   // const holderAddr = await getHolderAddr(dai, daiToPack);
-  console.log("getting DAI holders on block 15,371,847…");
-  const holders = await snowflake.getHolders(15371847);
-  for (const holder of holders.splice(holders.length - 100005, holders.length - 100000)) {
-    console.log(holder);
+  const blockNumber = 15390145;
+  console.log(`getting DAI holders on block ${blockNumber}…`);
+  const holders = await snowflake.getHolders(blockNumber);
+  for (const holder of holders) {
     const holderAddr = holder.HOLDER;
-    const daiToPackWei = ethers.BigNumber.from(holder.BALANCE === "0x" ? 0 : BigInt(parseInt(holder.BALANCE, 16)));
+    //const daiToPackWei = ethers.BigNumber.from(holder.BALANCE === "0x" ? 0 : holder.BALANCE);
+    const daiToPackWei = await dai.balanceOf(holderAddr);
     const daiToPack = ethers.utils.formatUnits(daiToPackWei);
     // const daiToPack = "1";
     console.log(`user ${holderAddr} is cashing ${daiToPack} DAI (${daiToPackWei.toString()})`);
