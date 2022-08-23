@@ -352,6 +352,8 @@ const exit = async (ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaG
 }
 
 const ES = async () => {
+  const blockNumber = process.argv.length > 2 ? process.argv[2] : await ethers.provider.getBlockNumber();
+  console.log(blockNumber);
   const {
     end,
     spotter,
@@ -378,7 +380,6 @@ const ES = async () => {
   // const urnsETH = await vaults.list("ETH-C");
   // await oracles.setPrice("ETH-C", 0.5);
   // await triggerAuctions("ETH-C", urnsETH, 3);
-  console.log("ilks pris en compte:");
   console.log(ilkNames);
   console.log("discarded ilks:");
   console.log(discardedIlks);
@@ -399,7 +400,6 @@ const ES = async () => {
     await flow(ilkName, end);
   }
   // const holderAddr = await getHolderAddr(dai, daiToPack);
-  const blockNumber = 15390145;
   console.log(`getting DAI holders on block ${blockNumber}…`);
   const holders = await snowflake.getHolders(blockNumber);
   for (const holder of holders) {
@@ -417,10 +417,8 @@ const ES = async () => {
       holderAddr = "0x" + padString;
     }
     console.log(holderAddr);
-    //const daiToPackWei = ethers.BigNumber.from(holder.BALANCE === "0x" ? 0 : holder.BALANCE);
     const daiToPackWei = await dai.balanceOf(holderAddr);
     const daiToPack = ethers.utils.formatUnits(daiToPackWei);
-    // const daiToPack = "1";
     console.log(`user ${holderAddr} is cashing ${daiToPack} DAI (${daiToPackWei.toString()})`);
     await impersonate(holderAddr);
     await pack(vat, end, daiJoin, dai, holderAddr, daiToPack);
