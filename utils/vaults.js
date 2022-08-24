@@ -1,6 +1,7 @@
 const hre = require("hardhat");
 const ethers = hre.ethers;
 const chainlog = require("./chainlog");
+const snowflake = require("./snowflake");
 
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
@@ -13,7 +14,7 @@ const login = async () => {
   const params = new URLSearchParams();
   params.append("username", process.env["API_USERNAME"]);
   params.append("password", process.env["API_PASSWORD"]);
-  const response = await fetch(url, {method: "post", body: params});
+  const response = await fetch(url, {method: "post", body: params});
   const data = await response.json();
   const {access_token: token} = data;
   return token;
@@ -64,10 +65,20 @@ const getUnder = async (ilk, urns, max) => {
   return under;
 }
 
-const vaults = async ilk => {
-  const token = await login();
-  const urns = await getUrns(token, ilk);
-  return urns;
+const vaults = async (ilk, cropIlks, blockNumber) => {
+  if (cropIlks.includes(ilk)) {
+    const rows = await snowflake.getCropHolders(blockNumber);
+    const urns = [];
+    for (const row of rows) {
+      const urn = "0x" + row.TOPIC2.substring(2 + 2*12, 2 + 2*32);
+      urns.push(urn);
+    }
+    return urns;
+  } else {
+    const token = await login();
+    const urns = await getUrns(token, ilk);
+    return urns;
+  }
 }
 
 module.exports = {

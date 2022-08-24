@@ -1,13 +1,12 @@
 const snowflake = require("snowflake-sdk");
 
 const query = (sqlText, blockNumber, onLoad, onFail) => {
-
   const connection = snowflake.createConnection({
     account: process.env["SNOWFLAKE_ACCOUNT"],
     username: process.env["SNOWFLAKE_USER"],
     password: process.env["SNOWFLAKE_PASS"],
     application: "ES-simulations",
-    database: "ETH",
+    database: process.env["SNOWFLAKE_DB"],
     schema: "RAW",
     jsTreatIntegerAsBigInt: true,
   });
@@ -41,16 +40,8 @@ const query = (sqlText, blockNumber, onLoad, onFail) => {
   });
 }
 
-const getHolders = blockNumber => {
+const promiseQuery = (sqlText, blockNumber) => {
   return new Promise((resolve, reject) => {
-    const sqlText = `
-select distinct location,
-    last_value(curr_value) over (partition by location order by block, order_index) as balance
-from storage_diffs
-where contract = '0x6b175474e89094c44da98b954eedeac495271d0f' and
-    location like '2[%].0' and status and block <= :1
-qualify balance != '0x';
-`;
     query(sqlText, blockNumber, resolve, reject);
   }).catch(error => {
     console.error(error);
@@ -58,6 +49,31 @@ qualify balance != '0x';
   });
 }
 
+const getHolders = blockNumber => {
+  const sqlText = `
+select distinct location,
+    last_value(curr_value) over (partition by location order by block, order_index) as balance
+from storage_diffs
+where contract = '0x6b175474e89094c44da98b954eedeac495271d0f' and
+    location like '2[%].0' and status and block <= :1
+qualify balance != '0x';
+`;
+  return promiseQuery(sqlText, blockNumber);
+}
+
+const getCropHolders = blockNumber => {
+  const sqlText = `
+select distinct TOPIC2
+from EVENTS
+where CONTRACT = '0x82d8bfdb61404c796385f251654f6d7e92092b5d'
+    and TOPIC0 = '0x0e64978d073561c3dfd4d4e3e4dce066cde2ab246a44f990fabb0a21a4a3bd95'
+    and STATUS
+    and BLOCK <= 16000000;
+`;
+  return promiseQuery(sqlText, blockNumber);
+}
+
 module.exports = {
   getHolders,
+  getCropHolders,
 }

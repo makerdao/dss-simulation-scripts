@@ -367,17 +367,17 @@ const ES = async () => {
   const ilks = await ilkReg.list();
   const cropIlks = ["CRVV1ETHSTETH-A"];
   const discardedIlks = [];
-  // const ilkNames = ["PSM-USDC-A"];
-  const ilkNames = [];
-  for (const ilk of ilks) {
-    const [Art, rate, spot] = await vat.ilks(ilk);
-    if (spot.gt(0)) {
-      ilkNames.push(ethers.utils.parseBytes32String(ilk));
-    } else {
-      discardedIlks.push(ethers.utils.parseBytes32String(ilk));
-    }
-  }
-  // const urnsETH = await vaults.list("ETH-C");
+  const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
+  // const ilkNames = [];
+  // for (const ilk of ilks) {
+  //   const [Art, rate, spot] = await vat.ilks(ilk);
+  //   if (spot.gt(0)) {
+  //     ilkNames.push(ethers.utils.parseBytes32String(ilk));
+  //   } else {
+  //     discardedIlks.push(ethers.utils.parseBytes32String(ilk));
+  //   }
+  // }
+  // const urnsETH = await vaults.list("ETH-C", cropIlks, blockNumber);
   // await oracles.setPrice("ETH-C", 0.5);
   // await triggerAuctions("ETH-C", urnsETH, 3);
   console.log(ilkNames);
@@ -388,10 +388,8 @@ const ES = async () => {
   for (const ilkName of ilkNames) {
     await tag(ilkName, end);
     await snip(ilkName, end);
-    const urns = await vaults.list(ilkName);
-    // const subUrns = urns.splice(0, 20);
+    const urns = await vaults.list(ilkName, cropIlks, blockNumber);
     await skim(ilkName, vat, end, vow, urns, cropIlks);
-    // const sample = subUrns.splice(0, 10);
     await free(ilkName, vat, end, cropper, urns, cropIlks);
   }
   await heal(vat, vow);
