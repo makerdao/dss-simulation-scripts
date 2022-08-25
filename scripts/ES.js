@@ -376,19 +376,19 @@ const ES = async () => {
   const ilks = await ilkReg.list();
   const cropIlks = ["CRVV1ETHSTETH-A"];
   const discardedIlks = [];
-  const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
-  // const ilkNames = [];
-  // for (const ilk of ilks) {
-  //   const [Art, rate, spot] = await vat.ilks(ilk);
-  //   if (spot.gt(0)) {
-  //     ilkNames.push(ethers.utils.parseBytes32String(ilk));
-  //   } else {
-  //     discardedIlks.push(ethers.utils.parseBytes32String(ilk));
-  //   }
-  // }
-  // const urnsETH = await vaults.list("ETH-C", cropIlks, blockNumber);
-  // await oracles.setPrice("ETH-C", 0.5);
-  // await triggerAuctions("ETH-C", urnsETH, 3);
+  // const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
+  const ilkNames = [];
+  for (const ilk of ilks) {
+    const [Art, rate, spot] = await vat.ilks(ilk);
+    if (spot.gt(0)) {
+      ilkNames.push(ethers.utils.parseBytes32String(ilk));
+    } else {
+      discardedIlks.push(ethers.utils.parseBytes32String(ilk));
+    }
+  }
+  const urnsETH = await vaults.list("ETH-C", cropIlks, blockNumber);
+  await oracles.setPrice("ETH-C", 0.5);
+  await triggerAuctions("ETH-C", urnsETH, 3);
   console.log(ilkNames);
   console.log("discarded ilks:");
   console.log(discardedIlks);
