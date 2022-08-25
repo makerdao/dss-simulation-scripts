@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGP-3.0-or-later
 
+import "dss-exec-lib/DssExecLib.sol";
+
 pragma solidity ^0.6.12;
 
 interface PipLike {
@@ -33,4 +35,7 @@ contract Action {
         MedianLike(median).lift(oracles);
     }
 
+    function sendPaymentFromSurplusBuffer(address _target, uint256 _amount) external {
+        DssExecLib.sendPaymentFromSurplusBuffer(_target, _amount);
+    }
 }
