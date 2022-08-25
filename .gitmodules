@@ -1,0 +1,3 @@
+[submodule "lib/dss-exec-lib"]
+	path = lib/dss-exec-lib
+	url = https://github.com/makerdao/dss-exec-lib
