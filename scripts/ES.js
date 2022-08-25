@@ -53,6 +53,7 @@ const getContracts = async () => {
     "function getOrCreateProxy(address) external",
     "function proxy(address) external view returns (address)",
     "function flee(address, address, uint256)",
+    "function quit(bytes32, address, address)",
   ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
@@ -132,24 +133,28 @@ const snip = async (ilkName, end) => {
 }
 
 // 3. `skim(ilk, urn)`: close vaults
-const skim = async (ilkName, vat, end, vow, urns, cropIlks) => {
+const skim = async (ilkName, vat, end, vow, cropper, urns, cropIlks) => {
   console.log(`skim ${ilkName} vaults`);
   const ilk = ethers.utils.formatBytes32String(ilkName);
   const sur = await vat.dai(vow.address);
   let counter = 0;
-  for (urn of urns) {
+  for (let urn of urns) {
+    if (cropIlks.includes(ilkName)) {
+      urn = await cropper.proxy(urn);
+    }
     const percentage = Math.round(100 * counter++ / urns.length);
+    const gemBefore = await vat.gem(ilk, end.address);
+    await end.skim(ilk, urn);
     const sin = await vat.sin(vow.address);
     const rem = sur.sub(sin);
     const remPretty = ethers.utils.formatUnits(rem, 51);
     const remShort = remPretty.substring(0, remPretty.indexOf(".") + 7);
     process.stdout.write(`${percentage}% - surplus remaining: ${remShort} million\r`);
-    const gemBefore = await vat.gem(ilk, end.address);
-    await end.skim(ilk, urn);
     if (cropIlks.includes(ilkName)) {
       const gemAfter = await vat.gem(ilk, end.address);
       const deltaGem = gemAfter.sub(gemBefore);
       if (deltaGem.eq(0)) continue;
+      console.log(`${urn} skimmed ${ethers.utils.formatUnits(deltaGem)} ${ilkName}`);
       const {gemJoin, gem} = await getIlkContracts(ilkName);
       await gemJoin.tack(urn, end.address, deltaGem);
     }
@@ -187,6 +192,10 @@ const free = async (ilkName, vat, end, cropper, urns, cropIlks) => {
       params: [urn],
     });
     const owner = await ethers.getSigner(urn);
+    if (cropIlks.includes(ilkName)) {
+      await vat.connect(owner).hope(cropper.address);
+      await cropper.connect(owner).quit(ilk, urn, urn);
+    }
     const gemBefore = await vat.gem(ilk, urn);
     await end.connect(owner).free(ilk);
     const gemAfter = await vat.gem(ilk, urn);
@@ -202,15 +211,15 @@ const exitVault = async (ilkName, vat, cropper, gemJoin, gem, urn, deltaGem, cro
   const decDiff = ethers.BigNumber.from(18).sub(dec);
   const decDiffPow = ethers.BigNumber.from(10).pow(decDiff);
   const deltaDec = deltaGem.div(decDiffPow);
-  if (deltaDec.eq(0)) return;
+  if (deltaDec.eq(0)) {
+    return;
+  }
   const signer = await ethers.getSigner(urn);
   const balanceBefore = await gem.balanceOf(urn);
   if (cropIlks.includes(ilkName)) {
     const ilk = ethers.utils.formatBytes32String(ilkName);
-    await cropper.getOrCreateProxy(urn);
     const proxyAddr = await cropper.proxy(urn);
     await vat.connect(signer).flux(ilk, urn, proxyAddr, deltaGem);
-    await gemJoin.tack(urn, proxyAddr, deltaGem);
     await cropper.connect(signer).flee(gemJoin.address, urn, deltaDec);
   } else {
     await gemJoin.connect(signer).exit(urn, deltaDec);
@@ -386,10 +395,11 @@ const ES = async () => {
 
   await cage(end);
   for (const ilkName of ilkNames) {
+    console.log(`\nprocessing ${ilkName}…`);
     await tag(ilkName, end);
     await snip(ilkName, end);
     const urns = await vaults.list(ilkName, cropIlks, blockNumber);
-    await skim(ilkName, vat, end, vow, urns, cropIlks);
+    await skim(ilkName, vat, end, vow, cropper, urns, cropIlks);
     await free(ilkName, vat, end, cropper, urns, cropIlks);
   }
   await heal(vat, vow);

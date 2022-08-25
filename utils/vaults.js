@@ -27,7 +27,6 @@ const getUrns = async (token, ilk) => {
   const authHeader = {Authorization: "Bearer " + token};
   params.append("limit", 1000000);
   const urlWithParams = url + "?" + params.toString();
-  console.log(`getting vault addresses for ${ilk}…`);
   const response = await fetch(urlWithParams, {headers: authHeader});
   const vaults = await response.json();
   console.log(`found ${vaults.length} vaults.`);
@@ -66,6 +65,7 @@ const getUnder = async (ilk, urns, max) => {
 }
 
 const vaults = async (ilk, cropIlks, blockNumber) => {
+  console.log(`getting vault addresses for ${ilk}…`);
   if (cropIlks.includes(ilk)) {
     const rows = await snowflake.getCropHolders(blockNumber);
     const urns = [];
