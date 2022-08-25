@@ -6,6 +6,8 @@
 yarn
 ```
 
+Also forge is necessary to compile the contracts
+
 ## Inital steps
 
 ### Set environment variables
@@ -13,12 +15,17 @@ yarn
 ```
 export ETH_RPC_URL=https://eth-mainnet.alchemyapi.io/v2/...
 export HARDHAT_NETWORK=localhost
+export API_USERNAME=<your data-insight username>
+export API_PASSWORD=…
+export SNOWFLAKE_ACCOUNT=<your TokenFlow Snowflake account ID>
+export SNOWFLAKE_PASS=…
+export SNOWFLAKE_DB=<the name of the TokenFlow Ethereum DB>
 ```
 
 ### Compile contracts
 
 ```
-yarn hardhat compile
+./compile.sh
 ```
 
 ### Start the forked mainnet server
@@ -26,6 +33,8 @@ yarn hardhat compile
 ```
 ./bin/start.sh
 ```
+
+(you will see the block number where the fork happened. Make sure it is the same the ES script uses)
 
 ## Running Scripts
 
@@ -49,6 +58,11 @@ export PIP_ETH=0x81fe72b5a8d1a857d176c3e7d5bd2679a9b85763
 ### Trigger ES
 ```
 ./scripts/cageMCD.js
+```
+
+### Perform full ES simulations
+```
+./scripts/ES.js [forked blockNumber]
 ```
 
 ## debug notes
