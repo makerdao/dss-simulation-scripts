@@ -30,7 +30,7 @@ const getMkr = async amount => {
   const amountHex = amount.toHexString();
   const amountHex32 = ethers.utils.hexZeroPad(amountHex, 32);
   await provider.request({
-    method: "hardhat_setStorageAt",
+    method: "hardhat_setStorageAt",
     params: [govAddr, hash, amountHex32]
   });
 }
@@ -66,7 +66,7 @@ const vote = async amountMkr => {
 }
 
 const deployAction = async () => {
-  const path = "./artifacts/contracts/Action.sol/Action.json";
+  const path = "./artifacts/Action.sol/Action.json";
   const contract = JSON.parse(fs.readFileSync(path, "utf-8"));
   const [signer] = await ethers.getSigners();
   const factory = new ethers.ContractFactory(contract.abi, contract.bytecode, signer);
@@ -120,6 +120,7 @@ const cast = async (sig, params) => {
   await vote(approvals.add(1));
   console.log("deploying spell action…");
   const actionAddr = await deployAction();
+  console.log(`deployed at ${actionAddr}`);
   console.log("executing " + sig + "…");
   const calldata = getCalldata(sig, params);
   await exec(actionAddr, calldata);
@@ -127,5 +128,5 @@ const cast = async (sig, params) => {
 }
 
 module.exports = {
-  spell: cast,
+  spell: cast,
 }
