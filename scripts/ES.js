@@ -55,6 +55,9 @@ const getContracts = async () => {
     "function flee(address, address, uint256)",
     "function quit(bytes32, address, address)",
   ];
+  const jugAbi = [
+    "function drip(bytes32) external",
+  ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
   const vatAddr = await chainlog.get("MCD_VAT");
@@ -63,6 +66,7 @@ const getContracts = async () => {
   const daiJoinAddr = await chainlog.get("MCD_JOIN_DAI");
   const ilkRegAddr = await chainlog.get("ILK_REGISTRY");
   const cropperAddr = await chainlog.get("MCD_CROPPER");
+  const jugAddr = await chainlog.get("MCD_JUG");
 
   const end = await ethers.getContractAt(endAbi, endAddr);
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
@@ -72,8 +76,9 @@ const getContracts = async () => {
   const daiJoin = await ethers.getContractAt(daiJoinAbi, daiJoinAddr);
   const ilkReg = await ethers.getContractAt(ilkRegAbi, ilkRegAddr);
   const cropper = await ethers.getContractAt(cropperAbi, cropperAddr);
+  const jug = await ethers.getContractAt(jugAbi, jugAddr);
 
-  return {end, spotter, vat, vow, dai, daiJoin, ilkReg, cropper};
+  return {end, spotter, vat, vow, dai, daiJoin, ilkReg, cropper, jug};
 }
 
 const getIlkContracts = async ilkName => {
@@ -102,6 +107,20 @@ const triggerAuctions = async (ilkName, urns, amount) => {
   const underVaults = await vaults.listUnder(ilkName, urns, amount);
   for (let i = 0; i < underVaults.length; i++) {
     await auctions.bark(ilkName, underVaults[i]);
+  }
+}
+
+const triggerSurplusAuctions = async (jug, ilkNames) => {
+  const block = await ethers.provider.getBlock();
+  await hre.network.provider.request({
+    method: "evm_setNextBlockTimestamp",
+    params: [block.timestamp + 10_000_000]
+  });
+  for (const ilkName of ilkNames) {
+    const ilk = ethers.utils.formatBytes32String(ilkName);
+    console.log(ilkName);
+    await jug.drip(ilk, {gasLimit: 100_000});
+    console.log("done");
   }
 }
 
@@ -372,23 +391,25 @@ const ES = async () => {
     daiJoin,
     ilkReg,
     cropper,
+    jug,
   } = await getContracts();
   const ilks = await ilkReg.list();
   const cropIlks = ["CRVV1ETHSTETH-A"];
   const discardedIlks = [];
-  const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
-  // const ilkNames = [];
-  // for (const ilk of ilks) {
-  //   const [Art, rate, spot] = await vat.ilks(ilk);
-  //   if (spot.gt(0)) {
-  //     ilkNames.push(ethers.utils.parseBytes32String(ilk));
-  //   } else {
-  //     discardedIlks.push(ethers.utils.parseBytes32String(ilk));
-  //   }
-  // }
+  // const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
+  const ilkNames = [];
+  for (const ilk of ilks) {
+    const [Art, rate, spot] = await vat.ilks(ilk);
+    if (spot.gt(0)) {
+      ilkNames.push(ethers.utils.parseBytes32String(ilk));
+    } else {
+      discardedIlks.push(ethers.utils.parseBytes32String(ilk));
+    }
+  }
   // const urnsETH = await vaults.list("ETH-C", cropIlks, blockNumber);
   // await oracles.setPrice("ETH-C", 0.5);
   // await triggerAuctions("ETH-C", urnsETH, 3);
+  await triggerSurplusAuctions(jug, ilkNames);
   console.log(ilkNames);
   console.log("discarded ilks:");
   console.log(discardedIlks);

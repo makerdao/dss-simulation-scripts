@@ -1,14 +1,22 @@
 hre = require("hardhat");
 ethers = hre.ethers;
-governance = require("../utils/governance");
 chainlog = require("../utils/chainlog");
 
 test = async () => {
-  await governance.spell("sendPaymentFromSurplusBuffer(address,uint256)", ["0xb5a865367ba4c637897b269e26ec5e8da91b40da", 123]);
-  // end = await chainlog.get("MCD_END");
-  // governance.spell("cage(address)", [end]);
-  // pip = await chainlog.get("PIP_BAT");
-  // await governance.spell("change(address,address)", [pip, "0x18b4633d6e39870f398597f3c1ba8c4a41294966"]);
+  const ilkRegAbi = ["function list() external view returns (bytes32[])"];
+  const jugAbi = ["function drip(bytes32) external returns (uint256)"];
+  const ilkRegAddr = await chainlog.get("ILK_REGISTRY");
+  const jugAddr = await chainlog.get("MCD_JUG");
+  const ilkReg = await ethers.getContractAt(ilkRegAbi, ilkRegAddr);
+  const jug = await ethers.getContractAt(jugAbi, jugAddr);
+  const ilks = await ilkReg.list();
+  for (const ilk of ilks) {
+    console.log(ethers.utils.parseBytes32String(ilk));
+    const tx = await jug.drip(
+      ilk,
+      {gasLimit: 100_000} // tends to underestimate gas
+    );
+  }
 }
 
 test();
