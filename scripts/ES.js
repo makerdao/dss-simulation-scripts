@@ -38,6 +38,9 @@ const getContracts = async () => {
   ];
   const vowAbi = [
     "function heal(uint256) external",
+    "function flap()",
+    "function Sin() external view returns (uint256)",
+    "function Ash() external view returns (uint256)",
   ];
   const daiAbi = [
     "function balanceOf(address) external view returns (uint256)",
@@ -110,18 +113,25 @@ const triggerAuctions = async (ilkName, urns, amount) => {
   }
 }
 
-const triggerSurplusAuctions = async (jug, ilkNames) => {
+const triggerSurplusAuctions = async (vat, jug, vow, ilkNames) => {
+  console.log("triggering surplus actions…");
   const block = await ethers.provider.getBlock();
   await hre.network.provider.request({
     method: "evm_setNextBlockTimestamp",
-    params: [block.timestamp + 10_000_000]
+    params: [block.timestamp + 1_000_000_000]
   });
+  console.log("dripping ilks…");
+  let i = 0;
   for (const ilkName of ilkNames) {
+    process.stdout.write(`${Math.round(100 * i++ / ilkNames.length)}%\r`);
     const ilk = ethers.utils.formatBytes32String(ilkName);
-    console.log(ilkName);
     await jug.drip(ilk, {gasLimit: 100_000});
-    console.log("done");
   }
+  const sin = await vat.sin(vow.address);
+  const Sin = await vow.Sin();
+  const Ash = await vow.Ash();
+  await vow.heal(sin.sub(Sin).sub(Ash));
+  await vow.flap();
 }
 
 // 1. `cage()`: freeze system
@@ -382,6 +392,7 @@ const exit = async (ilkName, vat, end, cropper, gemJoin, gem, holderAddr, deltaG
 const ES = async () => {
   const blockNumber = process.argv.length > 2 ? process.argv[2] : await ethers.provider.getBlockNumber();
   console.log(blockNumber);
+  console.log("getting contracts…");
   const {
     end,
     spotter,
@@ -393,26 +404,28 @@ const ES = async () => {
     cropper,
     jug,
   } = await getContracts();
+  console.log("getting ilks…");
   const ilks = await ilkReg.list();
   const cropIlks = ["CRVV1ETHSTETH-A"];
-  const discardedIlks = [];
   // const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
   const ilkNames = [];
+  let counter = 0;
+  console.log("discarding zero-spot ilks…");
   for (const ilk of ilks) {
+    const percentage = Math.round(100 * counter++ / ilks.length);
+    process.stdout.write(`${percentage}%\r`);
+    const ilkName = ethers.utils.parseBytes32String(ilk)
     const [Art, rate, spot] = await vat.ilks(ilk);
     if (spot.gt(0)) {
-      ilkNames.push(ethers.utils.parseBytes32String(ilk));
+      ilkNames.push(ilkName);
     } else {
-      discardedIlks.push(ethers.utils.parseBytes32String(ilk));
+      console.log(`discarded ${ilkName}`);
     }
   }
   // const urnsETH = await vaults.list("ETH-C", cropIlks, blockNumber);
   // await oracles.setPrice("ETH-C", 0.5);
   // await triggerAuctions("ETH-C", urnsETH, 3);
-  await triggerSurplusAuctions(jug, ilkNames);
-  console.log(ilkNames);
-  console.log("discarded ilks:");
-  console.log(discardedIlks);
+  await triggerSurplusAuctions(vat, jug, vow, ilkNames);
 
   await cage(end);
   for (const ilkName of ilkNames) {
