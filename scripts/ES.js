@@ -33,7 +33,7 @@ const getContracts = async () => {
     "function sin(address) external view returns (uint256)",
     "function hope(address) external",
     "function gem(bytes32, address) external view returns (uint256)",
-    "function ilks(bytes32) external view returns (uint256,uint256,uint256,uint256,uint256)",
+    "function ilks(bytes32) external view returns (uint256 Art, uint256 rate, uint256 spot, uint256 line, uint256 dust)",
     "function flux(bytes32, address, address, uint256) external",
   ];
   const vowAbi = [
@@ -42,6 +42,8 @@ const getContracts = async () => {
     "function Sin() external view returns (uint256)",
     "function Ash() external view returns (uint256)",
     "function bump() view returns (uint256)",
+    "function flop()",
+    "function sump() view returns (uint256)",
   ];
   const daiAbi = [
     "function balanceOf(address) external view returns (uint256)",
@@ -123,7 +125,7 @@ const triggerAuctions = async (ilkName, urns, amount) => {
   }
 }
 
-const triggerFlapAuctions = async (vat, jug, vow, flapper, ilkNames) => {
+const triggerFlaps = async (vat, jug, vow, flapper, ilkNames) => {
   console.log("triggering surplus actions…");
   const block = await ethers.provider.getBlock();
   await hre.network.provider.request({
@@ -152,6 +154,24 @@ const triggerFlapAuctions = async (vat, jug, vow, flapper, ilkNames) => {
     console.log(`triggered flap auction ${id} with ${lot} dai as lot`);
     fill = fill.add(bump);
   }
+}
+
+const triggerFlops = async (vat, vow, ilkNames, amount) => {
+  const sur = await vat.dai(vow.address);
+  const sin = await vat.sin(vow.address);
+  const Sin = await vow.Sin();
+  const Ash = await vow.Ash();
+  const pureSin = sin.sub(Sin).sub(Ash);
+  const sump = await vow.sump();
+  const need = sump.mul(amount).add(sur).sub(pureSin);
+  console.log(`in need of ${ethers.utils.formatUnits(need, 45)} DAI worth of bad debt to trigger ${amount} flops`);
+  const Arts = [];
+  for (const ilkName of ilkNames) {
+    const ilk = ethers.utils.formatBytes32String(ilkName);
+    const {Art} = await vat.ilks(ilk);
+    Arts.push({name: ilkName, value: Art});
+  }
+  Arts.sort((a, b) => b.value.sub(a.value));
 }
 
 // 1. `cage()`: freeze system
@@ -441,23 +461,26 @@ const ES = async () => {
   const cropIlks = ["CRVV1ETHSTETH-A"];
   // const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
   const ilkNames = [];
-  let counter = 0;
-  console.log("discarding zero-spot ilks…");
-  for (const ilk of ilks) {
-    const percentage = Math.round(100 * counter++ / ilks.length);
-    process.stdout.write(`${percentage}%\r`);
-    const ilkName = ethers.utils.parseBytes32String(ilk)
-    const [Art, rate, spot] = await vat.ilks(ilk);
-    if (spot.gt(0)) {
-      ilkNames.push(ilkName);
-    } else {
-      console.log(`discarded ${ilkName}`);
-    }
-  }
+  ilks.forEach(ilk => ilkNames.push(ethers.utils.parseBytes32String(ilk)));
+  // let counter = 0;
+  // console.log("discarding zero-spot ilks…");
+  // for (const ilk of ilks) {
+  //   const percentage = Math.round(100 * counter++ / ilks.length);
+  //   process.stdout.write(`${percentage}%\r`);
+  //   const ilkName = ethers.utils.parseBytes32String(ilk)
+  //   const [Art, rate, spot] = await vat.ilks(ilk);
+  //   if (spot.gt(0)) {
+  //     ilkNames.push(ilkName);
+  //   } else {
+  //     console.log(`discarded ${ilkName}`);
+  //   }
+  // }
   // const urnsETH = await vaults.list("ETH-C", cropIlks, blockNumber);
   // await oracles.setPrice("ETH-C", 0.5);
   // await triggerAuctions("ETH-C", urnsETH, 3);
-  await triggerFlapAuctions(vat, jug, vow, flapper, ilkNames);
+  // await triggerFlaps(vat, jug, vow, flapper, ilkNames);
+  await triggerFlops(vat, vow, ilkNames, 3);
+  process.exit();
 
   await cage(end);
   await yankSystemAuctions(flapper);
