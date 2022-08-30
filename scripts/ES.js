@@ -41,6 +41,7 @@ const getContracts = async () => {
     "function flap()",
     "function Sin() external view returns (uint256)",
     "function Ash() external view returns (uint256)",
+    "function bump() view returns (uint256)",
   ];
   const daiAbi = [
     "function balanceOf(address) external view returns (uint256)",
@@ -61,6 +62,12 @@ const getContracts = async () => {
   const jugAbi = [
     "function drip(bytes32) external",
   ];
+  const flapperAbi = [
+    "function bids(uint256) view returns ((uint256,uint256,address,uint48,uint48))",
+    "function kicks() view returns (uint256)",
+    "function fill() view returns (uint256)",
+    "function lid() view returns (uint256)",
+  ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
   const vatAddr = await chainlog.get("MCD_VAT");
@@ -70,6 +77,7 @@ const getContracts = async () => {
   const ilkRegAddr = await chainlog.get("ILK_REGISTRY");
   const cropperAddr = await chainlog.get("MCD_CROPPER");
   const jugAddr = await chainlog.get("MCD_JUG");
+  const flapperAddr = await chainlog.get("MCD_FLAP");
 
   const end = await ethers.getContractAt(endAbi, endAddr);
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
@@ -80,8 +88,9 @@ const getContracts = async () => {
   const ilkReg = await ethers.getContractAt(ilkRegAbi, ilkRegAddr);
   const cropper = await ethers.getContractAt(cropperAbi, cropperAddr);
   const jug = await ethers.getContractAt(jugAbi, jugAddr);
+  const flapper = await ethers.getContractAt(flapperAbi, flapperAddr);
 
-  return {end, spotter, vat, vow, dai, daiJoin, ilkReg, cropper, jug};
+  return {end, spotter, vat, vow, dai, daiJoin, ilkReg, cropper, jug, flapper};
 }
 
 const getIlkContracts = async ilkName => {
@@ -113,7 +122,7 @@ const triggerAuctions = async (ilkName, urns, amount) => {
   }
 }
 
-const triggerSurplusAuctions = async (vat, jug, vow, ilkNames) => {
+const triggerSurplusAuctions = async (vat, jug, vow, flapper, ilkNames) => {
   console.log("triggering surplus actions…");
   const block = await ethers.provider.getBlock();
   await hre.network.provider.request({
@@ -131,7 +140,17 @@ const triggerSurplusAuctions = async (vat, jug, vow, ilkNames) => {
   const Sin = await vow.Sin();
   const Ash = await vow.Ash();
   await vow.heal(sin.sub(Sin).sub(Ash));
-  await vow.flap();
+  const bump = await vow.bump();
+  const lid = await flapper.lid();
+  let fill = await flapper.fill();
+  while (fill.add(bump).lte(lid)) {
+    await vow.flap();
+    const id = await flapper.kicks();
+    const bid = await flapper.bids(id);
+    const lot = ethers.utils.formatUnits(bid[1], 45);
+    console.log(`triggered auction id ${id} with ${lot} dai as lot`);
+    fill = fill.add(bump);
+  }
 }
 
 // 1. `cage()`: freeze system
@@ -403,6 +422,7 @@ const ES = async () => {
     ilkReg,
     cropper,
     jug,
+    flapper,
   } = await getContracts();
   console.log("getting ilks…");
   const ilks = await ilkReg.list();
@@ -425,7 +445,7 @@ const ES = async () => {
   // const urnsETH = await vaults.list("ETH-C", cropIlks, blockNumber);
   // await oracles.setPrice("ETH-C", 0.5);
   // await triggerAuctions("ETH-C", urnsETH, 3);
-  await triggerSurplusAuctions(vat, jug, vow, ilkNames);
+  await triggerSurplusAuctions(vat, jug, vow, flapper, ilkNames);
 
   await cage(end);
   for (const ilkName of ilkNames) {
