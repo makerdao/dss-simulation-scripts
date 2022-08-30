@@ -67,6 +67,7 @@ const getContracts = async () => {
     "function kicks() view returns (uint256)",
     "function fill() view returns (uint256)",
     "function lid() view returns (uint256)",
+    "function yank(uint256)",
   ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
@@ -122,7 +123,7 @@ const triggerAuctions = async (ilkName, urns, amount) => {
   }
 }
 
-const triggerSurplusAuctions = async (vat, jug, vow, flapper, ilkNames) => {
+const triggerFlapAuctions = async (vat, jug, vow, flapper, ilkNames) => {
   console.log("triggering surplus actions…");
   const block = await ethers.provider.getBlock();
   await hre.network.provider.request({
@@ -148,7 +149,7 @@ const triggerSurplusAuctions = async (vat, jug, vow, flapper, ilkNames) => {
     const id = await flapper.kicks();
     const bid = await flapper.bids(id);
     const lot = ethers.utils.formatUnits(bid[1], 45);
-    console.log(`triggered auction id ${id} with ${lot} dai as lot`);
+    console.log(`triggered flap auction ${id} with ${lot} dai as lot`);
     fill = fill.add(bump);
   }
 }
@@ -156,6 +157,17 @@ const triggerSurplusAuctions = async (vat, jug, vow, flapper, ilkNames) => {
 // 1. `cage()`: freeze system
 const cage = async end => {
   await governance.spell("cage(address)", [end.address]);
+}
+
+const yankSystemAuctions = async (flapper) => {
+  for (let id = await flapper.kicks(); id.gte(0); id = id.sub(1)) {
+    const bid = await flapper.bids(id);
+    const lot = bid[1];
+    if (lot.gt(0)) {
+      await flapper.yank(id);
+      console.log(`yanked flap auction ${id.toString()}`);
+    }
+  }
 }
 
 // 2. `cage(ilk)`: set ilk prices
@@ -445,9 +457,10 @@ const ES = async () => {
   // const urnsETH = await vaults.list("ETH-C", cropIlks, blockNumber);
   // await oracles.setPrice("ETH-C", 0.5);
   // await triggerAuctions("ETH-C", urnsETH, 3);
-  await triggerSurplusAuctions(vat, jug, vow, flapper, ilkNames);
+  await triggerFlapAuctions(vat, jug, vow, flapper, ilkNames);
 
   await cage(end);
+  await yankSystemAuctions(flapper);
   for (const ilkName of ilkNames) {
     console.log(`\nprocessing ${ilkName}…`);
     await tag(ilkName, end);
