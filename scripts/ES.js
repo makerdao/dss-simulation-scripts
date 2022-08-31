@@ -71,6 +71,10 @@ const getContracts = async () => {
     "function lid() view returns (uint256)",
     "function yank(uint256)",
   ];
+  const flopperAbi = [
+    "function kicks() view returns (uint256)",
+    "function bids(uint256) view returns ((uint256, uint256 lot))",
+  ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
   const vatAddr = await chainlog.get("MCD_VAT");
@@ -81,6 +85,7 @@ const getContracts = async () => {
   const cropperAddr = await chainlog.get("MCD_CROPPER");
   const jugAddr = await chainlog.get("MCD_JUG");
   const flapperAddr = await chainlog.get("MCD_FLAP");
+  const flopperAddr = await chainlog.get("MCD_FLOP");
 
   const end = await ethers.getContractAt(endAbi, endAddr);
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
@@ -92,8 +97,21 @@ const getContracts = async () => {
   const cropper = await ethers.getContractAt(cropperAbi, cropperAddr);
   const jug = await ethers.getContractAt(jugAbi, jugAddr);
   const flapper = await ethers.getContractAt(flapperAbi, flapperAddr);
+  const flopper = await ethers.getContractAt(flopperAbi, flopperAddr);
 
-  return {end, spotter, vat, vow, dai, daiJoin, ilkReg, cropper, jug, flapper};
+  return {
+    end,
+    spotter,
+    vat,
+    vow,
+    dai,
+    daiJoin,
+    ilkReg,
+    cropper,
+    jug,
+    flapper,
+    flopper,
+  };
 }
 
 const getIlkContracts = async ilkName => {
@@ -118,18 +136,24 @@ const getIlkContracts = async ilkName => {
   return {gemJoin, gem};
 }
 
-const triggerAuctions = async (ilkName, cropIlks, blockNumber, amount) => {
+const triggerAuctions = async (ilkName, cropIlks, blockNumber, drop, amount) => {
   const urns = await vaults.list(ilkName, cropIlks, blockNumber);
-  const success = await oracles.setPrice(ilkName, 0.5);
+  const success = await oracles.setPrice(ilkName, drop);
   if (!success) return;
   const underVaults = await vaults.listUnder(ilkName, urns, amount);
+  console.log(`barking ${underVaults.length} vaults…`);
   for (let i = 0; i < underVaults.length; i++) {
-    await auctions.bark(ilkName, underVaults[i]);
+    process.stdout.write(`${Math.round(100 * i / underVaults.length)}%\r`);
+    try {
+      await auctions.bark(ilkName, underVaults[i]);
+    } catch (e) {
+      console.error(e.message);
+    }
   }
 }
 
 const triggerFlaps = async (vat, jug, vow, flapper, ilkNames) => {
-  console.log("triggering surplus actions…");
+  console.log("triggering surplus auctions…");
   const block = await ethers.provider.getBlock();
   await hre.network.provider.request({
     method: "evm_setNextBlockTimestamp",
@@ -159,7 +183,9 @@ const triggerFlaps = async (vat, jug, vow, flapper, ilkNames) => {
   }
 }
 
-const triggerFlops = async (vat, vow, ilkNames, amount) => {
+const f = ethers.utils.formatUnits;
+
+const getNeed = async (vat, vow, amount) => {
   const sur = await vat.dai(vow.address);
   const sin = await vat.sin(vow.address);
   const Sin = await vow.Sin();
@@ -167,14 +193,22 @@ const triggerFlops = async (vat, vow, ilkNames, amount) => {
   const pureSin = sin.sub(Sin).sub(Ash);
   const sump = await vow.sump();
   const need = sump.mul(amount).add(sur).sub(pureSin);
-  console.log(`in need of ${ethers.utils.formatUnits(need, 45)} DAI worth of bad debt to trigger ${amount} flops`);
-  const Arts = [];
-  for (const ilkName of ilkNames) {
-    const ilk = ethers.utils.formatBytes32String(ilkName);
-    const {Art} = await vat.ilks(ilk);
-    Arts.push({name: ilkName, value: Art});
+  let nat = parseInt(ethers.utils.formatUnits(need, 45));
+  nat++;
+  console.log(`in need of losing ${nat} DAI to trigger ${amount} flops`);
+  return nat;
+}
+
+const triggerFlops = async (vat, vow, flopper, amount) => {
+  const need = await getNeed(vat, vow, amount);
+  await governance.spell("sendPaymentFromSurplusBuffer(address,uint256)", [vow.address, need]);
+  await heal(vat, vow);
+  for (let i = 0; i < amount; i++) {
+    await vow.flop();
+    const id = await flopper.kicks();
+    const {lot} = await flopper.bids(id);
+    console.log(`triggered flop ${id} auctioning ${ethers.utils.formatUnits(lot)} MKR`);
   }
-  Arts.sort((a, b) => b.value.sub(a.value));
 }
 
 // 1. `cage()`: freeze system
@@ -458,30 +492,32 @@ const ES = async () => {
     cropper,
     jug,
     flapper,
+    flopper,
   } = await getContracts();
   console.log("getting ilks…");
   const ilks = await ilkReg.list();
   const cropIlks = ["CRVV1ETHSTETH-A"];
   // const ilkNames = ["PSM-USDC-A", "CRVV1ETHSTETH-A"];
   const ilkNames = [];
-  ilks.forEach(ilk => ilkNames.push(ethers.utils.parseBytes32String(ilk)));
-  // let counter = 0;
-  // console.log("discarding zero-spot ilks…");
-  // for (const ilk of ilks) {
-  //   const percentage = Math.round(100 * counter++ / ilks.length);
-  //   process.stdout.write(`${percentage}%\r`);
-  //   const ilkName = ethers.utils.parseBytes32String(ilk)
-  //   const [Art, rate, spot] = await vat.ilks(ilk);
-  //   if (spot.gt(0)) {
-  //     ilkNames.push(ilkName);
-  //   } else {
-  //     console.log(`discarded ${ilkName}`);
-  //   }
+  // ilks.forEach(ilk => ilkNames.push(ethers.utils.parseBytes32String(ilk)));
+  let counter = 0;
+  console.log("discarding zero-spot ilks…");
+  for (const ilk of ilks) {
+    const percentage = Math.round(100 * counter++ / ilks.length);
+    process.stdout.write(`${percentage}%\r`);
+    const ilkName = ethers.utils.parseBytes32String(ilk)
+    const [Art, rate, spot] = await vat.ilks(ilk);
+    if (spot.gt(0)) {
+      ilkNames.push(ilkName);
+    } else {
+      console.log(`discarded ${ilkName}`);
+    }
+  }
+  // for (const ilkName of ilkNames) {
+  //   await triggerAuctions(ilkName, cropIlks, blockNumber, 0.5, 1);
   // }
-  // await triggerAuctions("ETH-C", cropIlks, blockNumber, 3);
-  // await triggerFlaps(vat, jug, vow, flapper, ilkNames);
-  await triggerFlops(vat, vow, ilkNames, 3);
-  process.exit();
+  await triggerFlaps(vat, jug, vow, flapper, ilkNames);
+  await triggerFlops(vat, vow, flopper, 3);
 
   await cage(end);
   await yankSystemAuctions(flapper);
