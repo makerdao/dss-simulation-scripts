@@ -25,15 +25,19 @@ const getMedian = async osm => {
     "function bar() external view returns (uint256)",
     "function poke(uint256[] val, uint256[] age, uint8[] v, bytes32[] r, bytes32[] s)",
   ];
-  const medianAddr = await osm.src();
-  const median = await ethers.getContractAt(medianAbi, medianAddr);
-  return median;
+  try {
+    const medianAddr = await osm.src();
+    const median = await ethers.getContractAt(medianAbi, medianAddr);
+    return median;
+  } catch (e) {
+    return null; // TODO: check for orbs
+  }
 }
 
 const dropOracles = async median => {
   const oracles = [];
   const message = `finding current oracles…`;
-  for (let i = 0; i < 256; i++) {
+  for (let i = 0; i < 256; i++) {
     const progress = Math.round(100 * (i+1) / 256);
     process.stdout.write(`${message} ${progress}% - found ${oracles.length} oracles\r`);
     const oracle = await median.slot(i);
@@ -121,6 +125,10 @@ const priceFeed = async (ilk, ratio) => {
   console.log(`setting new price to ${ratio} of its current value for ilk ${ilk}…`);
   const osm = await getOsm(ilk);
   const median = await getMedian(osm);
+  if (!median) {
+    console.log(`ilk ${ilk} does not have a medianizer contract.`);
+    return false;
+  }
   await dropOracles(median);
   const signers = await liftSigners(median);
   const value = await getValue(median, ratio);
@@ -128,8 +136,9 @@ const priceFeed = async (ilk, ratio) => {
   await pokeOsm(osm);
   await pokeSpotter(ilk);
   console.log("new price set.");
+  return true;
 }
 
 module.exports = {
-  setPrice: priceFeed,
+  setPrice: priceFeed,
 }

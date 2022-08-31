@@ -120,7 +120,8 @@ const getIlkContracts = async ilkName => {
 
 const triggerAuctions = async (ilkName, cropIlks, blockNumber, amount) => {
   const urns = await vaults.list(ilkName, cropIlks, blockNumber);
-  await oracles.setPrice(ilkName, 0.5);
+  const success = await oracles.setPrice(ilkName, 0.5);
+  if (!success) return;
   const underVaults = await vaults.listUnder(ilkName, urns, amount);
   for (let i = 0; i < underVaults.length; i++) {
     await auctions.bark(ilkName, underVaults[i]);
