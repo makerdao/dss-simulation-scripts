@@ -14,6 +14,7 @@ const getOsm = async ilk => {
     "function poke() external",
     "function orb0() view returns (address)",
     "function orb1() view returns (address)",
+    "function orbs(uint256) view returns (address)",
   ];
   const osmAddr = await ilkRegistry.pip(ilkBytes32);
   const osm = await ethers.getContractAt(osmAbi, osmAddr)
@@ -29,16 +30,22 @@ const getMedian = async osm => {
   ];
   try {
     await osm.orb0();
-    console.log("LP ilks not yet supported.");
+    console.log("uniswap LP ilks not supported.");
     return null;
   } catch (e) {
     try {
-      const medianAddr = await osm.src();
-      const median = await ethers.getContractAt(medianAbi, medianAddr);
-      return median;
-    } catch (e) {
-      console.log(`ilk does not have a medianizer contract.`);
+      await osm.orbs(0);
+      console.log("curve LP ilks not supported.");
       return null;
+    } catch (e) {
+      try {
+        const medianAddr = await osm.src();
+        const median = await ethers.getContractAt(medianAbi, medianAddr);
+        return median;
+      } catch (e) {
+        console.log(`ilk does not have a medianizer contract.`);
+        return null;
+      }
     }
   }
 }
