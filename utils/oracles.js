@@ -11,7 +11,9 @@ const getOsm = async ilk => {
   const ilkRegistry = await ethers.getContractAt(ilkRegistryAbi, ilkRegistryAddr);
   const osmAbi = [
     "function src() external view returns (address)",
-    "function poke() external"
+    "function poke() external",
+    "function orb0() view returns (address)",
+    "function orb1() view returns (address)",
   ];
   const osmAddr = await ilkRegistry.pip(ilkBytes32);
   const osm = await ethers.getContractAt(osmAbi, osmAddr)
@@ -26,11 +28,18 @@ const getMedian = async osm => {
     "function poke(uint256[] val, uint256[] age, uint8[] v, bytes32[] r, bytes32[] s)",
   ];
   try {
-    const medianAddr = await osm.src();
-    const median = await ethers.getContractAt(medianAbi, medianAddr);
-    return median;
+    await osm.orb0();
+    console.log("LP ilks not yet supported.");
+    return null;
   } catch (e) {
-    return null; // TODO: check for orbs
+    try {
+      const medianAddr = await osm.src();
+      const median = await ethers.getContractAt(medianAbi, medianAddr);
+      return median;
+    } catch (e) {
+      console.log(`ilk does not have a medianizer contract.`);
+      return null;
+    }
   }
 }
 
@@ -125,10 +134,7 @@ const priceFeed = async (ilk, ratio) => {
   console.log(`setting new price to ${ratio} of its current value for ilk ${ilk}…`);
   const osm = await getOsm(ilk);
   const median = await getMedian(osm);
-  if (!median) {
-    console.log(`ilk ${ilk} does not have a medianizer contract.`);
-    return false;
-  }
+  if (!median) return false;
   await dropOracles(median);
   const signers = await liftSigners(median);
   const value = await getValue(median, ratio);
