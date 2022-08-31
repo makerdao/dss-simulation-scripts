@@ -118,7 +118,9 @@ const getIlkContracts = async ilkName => {
   return {gemJoin, gem};
 }
 
-const triggerAuctions = async (ilkName, urns, amount) => {
+const triggerAuctions = async (ilkName, cropIlks, blockNumber, amount) => {
+  const urns = await vaults.list(ilkName, cropIlks, blockNumber);
+  await oracles.setPrice(ilkName, 0.5);
   const underVaults = await vaults.listUnder(ilkName, urns, amount);
   for (let i = 0; i < underVaults.length; i++) {
     await auctions.bark(ilkName, underVaults[i]);
@@ -475,9 +477,7 @@ const ES = async () => {
   //     console.log(`discarded ${ilkName}`);
   //   }
   // }
-  // const urnsETH = await vaults.list("ETH-C", cropIlks, blockNumber);
-  // await oracles.setPrice("ETH-C", 0.5);
-  // await triggerAuctions("ETH-C", urnsETH, 3);
+  // await triggerAuctions("ETH-C", cropIlks, blockNumber, 3);
   // await triggerFlaps(vat, jug, vow, flapper, ilkNames);
   await triggerFlops(vat, vow, ilkNames, 3);
   process.exit();
