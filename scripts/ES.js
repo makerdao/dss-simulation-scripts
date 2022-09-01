@@ -76,6 +76,16 @@ const getContracts = async () => {
     "function bids(uint256) view returns ((uint256, uint256 lot))",
     "function yank(uint256)",
   ];
+  const mkrAbi = [
+    "function balanceOf(address) view returns (uint256)",
+    "function approve(address, uint256)",
+  ];
+  const esmAbi = [
+    "function fire()",
+    "function join(uint256)",
+    "function Sum() view returns (uint256)",
+    "function min() view returns (uint256)",
+  ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
   const vatAddr = await chainlog.get("MCD_VAT");
@@ -87,6 +97,8 @@ const getContracts = async () => {
   const jugAddr = await chainlog.get("MCD_JUG");
   const flapperAddr = await chainlog.get("MCD_FLAP");
   const flopperAddr = await chainlog.get("MCD_FLOP");
+  const mkrAddr = await chainlog.get("MCD_GOV");
+  const esmAddr = await chainlog.get("MCD_ESM");
 
   const end = await ethers.getContractAt(endAbi, endAddr);
   const spotter = await ethers.getContractAt(spotterAbi, spotterAddr);
@@ -99,6 +111,8 @@ const getContracts = async () => {
   const jug = await ethers.getContractAt(jugAbi, jugAddr);
   const flapper = await ethers.getContractAt(flapperAbi, flapperAddr);
   const flopper = await ethers.getContractAt(flopperAbi, flopperAddr);
+  const mkr = await ethers.getContractAt(mkrAbi, mkrAddr);
+  const esm = await ethers.getContractAt(esmAbi, esmAddr);
 
   return {
     end,
@@ -112,6 +126,8 @@ const getContracts = async () => {
     jug,
     flapper,
     flopper,
+    mkr,
+    esm,
   };
 }
 
@@ -213,6 +229,19 @@ const triggerFlops = async (vat, vow, flopper, amount) => {
 // 1. `cage()`: freeze system
 const cage = async end => {
   await governance.spell("cage(address)", [end.address]);
+}
+
+const triggerEsm = async (mkr, esm) => {
+  console.log("triggering the ESM…");
+  const Sum = await esm.Sum();
+  const min = await esm.min();
+  const remaining = min.sub(Sum);
+  const signer = await ethers.getSigner();
+  await governance.getMkr(remaining);
+  await mkr.approve(esm.address, remaining);
+  await esm.connect(signer).join(remaining);
+  await esm.fire();
+  console.log("done.");
 }
 
 const yankSystemAuctions = async (flapper, flopper) => {
@@ -499,6 +528,8 @@ const ES = async () => {
     jug,
     flapper,
     flopper,
+    mkr,
+    esm,
   } = await getContracts();
   console.log("getting ilks…");
   const ilks = await ilkReg.list();
@@ -525,7 +556,8 @@ const ES = async () => {
   await triggerFlaps(vat, jug, vow, flapper, ilkNames);
   await triggerFlops(vat, vow, flopper, 3);
 
-  await cage(end);
+  // await cage(end);
+  await triggerEsm(mkr, esm);
   await yankSystemAuctions(flapper, flopper);
   for (const ilkName of ilkNames) {
     console.log(`\nprocessing ${ilkName}…`);

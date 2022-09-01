@@ -129,4 +129,5 @@ const cast = async (sig, params) => {
 
 module.exports = {
   spell: cast,
+  getMkr,
 }
