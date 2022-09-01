@@ -74,6 +74,7 @@ const getContracts = async () => {
   const flopperAbi = [
     "function kicks() view returns (uint256)",
     "function bids(uint256) view returns ((uint256, uint256 lot))",
+    "function yank(uint256)",
   ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
@@ -183,8 +184,6 @@ const triggerFlaps = async (vat, jug, vow, flapper, ilkNames) => {
   }
 }
 
-const f = ethers.utils.formatUnits;
-
 const getNeed = async (vat, vow, amount) => {
   const sur = await vat.dai(vow.address);
   const sin = await vat.sin(vow.address);
@@ -216,13 +215,20 @@ const cage = async end => {
   await governance.spell("cage(address)", [end.address]);
 }
 
-const yankSystemAuctions = async (flapper) => {
+const yankSystemAuctions = async (flapper, flopper) => {
   for (let id = await flapper.kicks(); id.gte(0); id = id.sub(1)) {
     const bid = await flapper.bids(id);
     const lot = bid[1];
     if (lot.gt(0)) {
       await flapper.yank(id);
-      console.log(`yanked flap auction ${id.toString()}`);
+      console.log(`yanked surplus auction ${id.toString()}`);
+    }
+  }
+  for (let id = await flopper.kicks(); id.gte(0); id = id.sub(1)) {
+    const {lot} = await flopper.bids(id);
+    if (lot.gt(0)) {
+      await flopper.yank(id);
+      console.log(`yanked debt auction ${id.toString()}`);
     }
   }
 }
@@ -520,7 +526,7 @@ const ES = async () => {
   await triggerFlops(vat, vow, flopper, 3);
 
   await cage(end);
-  await yankSystemAuctions(flapper);
+  await yankSystemAuctions(flapper, flopper);
   for (const ilkName of ilkNames) {
     console.log(`\nprocessing ${ilkName}…`);
     await tag(ilkName, end);
