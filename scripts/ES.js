@@ -85,6 +85,7 @@ const getContracts = async () => {
     "function join(uint256)",
     "function Sum() view returns (uint256)",
     "function min() view returns (uint256)",
+    "function denyProxy(address)",
   ];
   const endAddr = await chainlog.get("MCD_END");
   const spotterAddr = await chainlog.get("MCD_SPOT");
@@ -240,7 +241,10 @@ const triggerEsm = async (mkr, esm) => {
   await governance.getMkr(remaining);
   await mkr.approve(esm.address, remaining);
   await esm.connect(signer).join(remaining);
+  console.log("triggering ES…");
   await esm.fire();
+  console.log("revoking governance access from the End…");
+  await esm.denyProxy(await chainlog.get("MCD_END"));
   console.log("done.");
 }
 
