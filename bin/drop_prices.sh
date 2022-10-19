@@ -2,7 +2,7 @@
 
 export HARDHAT_NETWORK=localhost
 
-price_pct=0.75 # 25% reduction in price
+price_pct=0.90 # 10% reduction in price
 
 # ETH-A, ETH-B, ETH-C
 cur=$(./bin/osm_price.sh "${PIP_ETH}")
@@ -23,11 +23,12 @@ set -x
 ./scripts/setOSMPrice.js "RENBTC-A" "${PIP_RENBTC}" "${price}"
 set +x
 
-# WSTETH-A
+# WSTETH-A, WSTETH-B 
 cur=$(./bin/osm_price.sh "${PIP_WSTETH}")
 price=$(echo "scale=18; ${cur} * ${price_pct}"|bc)
 set -x
 ./scripts/setOSMPrice.js "WSTETH-A" "${PIP_WSTETH}" "${price}"
+./scripts/setOSMPrice.js "WSTETH-B" "${PIP_WSTETH}" "${price}"
 set +x
 
 # BAT-A
