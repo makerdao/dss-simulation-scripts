@@ -28,6 +28,11 @@ HARDHAT_NETWORK=localhost ./scripts/warp.js 7200
 HARDHAT_NETWORK=localhost ./scripts/setOSMPrice.js "ETH-A" ${PIP_ETH} 4000
 ```
 
+### execute a deployed spell
+```
+HARDHAT_NETWORK=localhost ./scripts/governance.js <spell address>
+```
+
 ## debug notes
 
 - Set the RPC host to be an archive node in `hardhat.config.js`.
