@@ -29,15 +29,15 @@ async function main() {
   console.log(PAUSE_PROXY + ': ' + ethers.utils.formatEther(balance));
 
   // send eth to the pause proxy
-  const SendEthDamnit = await ethers.getContractFactory("SendEthDamnit");
-  const sendEthDamnit = await SendEthDamnit.deploy(PAUSE_PROXY);
+  const SendEthDamnIt = await ethers.getContractFactory("SendEthDamnIt");
+  const sendEthDamnIt = await SendEthDamnIt.deploy(PAUSE_PROXY);
 
-  // Send 10 ether to SendEthDamnit
+  // Send 10 ether to SendEthDamnIt
   let tx = await signer.sendTransaction({
-    to: sendEthDamnit.address,
+    to: sendEthDamnIt.address,
     value: ethers.utils.parseEther("10.0")
   });
-  tx = await sendEthDamnit.send();
+  tx = await sendEthDamnIt.send();
 
   // balance PAUSE_PROXY
   balance = await ethers.provider.getBalance(PAUSE_PROXY);
