@@ -2,7 +2,7 @@
 
 pragma solidity 0.6.12;
 
-contract SendEthDamnit {
+contract SendEthDamnIt {
     address public to;
 
     constructor(address _to) public {
